@@ -21,12 +21,12 @@ int main(int argc, char* argv[])
 			"  [-maxvangle <max_vert_rotation_angle = %f>]\n"
 			"  [-minrad <min_wrapping_radius = %f>]\n"
 			"  [-maxrad <max_wrapping_radius = %f>]\n"
-			"  [-maxcylrot <max_cylinder_rotation = %f>]\n"
+			"  [-maxrot <max_rotation = %f>]\n"
 			"  [-w <sample_width = %d>]\n  [-h <sample_height = %d>]\n"
 			"  [-maxscale <max sample scale = %f>]\n"
 			"  [-random = %s]\n",
 			argv[0], data.params.numsample, data.params.bgcolor, data.params.bgthreshold, data.params.maxintensitydev,
-			data.params.maxhangle, data.params.maxvangle, data.params.minrad, data.params.maxrad, data.params.maxcylrot,
+			data.params.maxhangle, data.params.maxvangle, data.params.minrad, data.params.maxrad, data.params.maxrot,
 			data.params.winwidth, data.params.winheight, data.params.maxscale, data.params.random ? "true" : "false");
 
 		return 0;
@@ -78,9 +78,9 @@ int main(int argc, char* argv[])
 		{
 			data.params.maxrad = atof(argv[++i]);
 		}
-		else if (!_stricmp(argv[i], "-maxcylrot"))
+		else if (!_stricmp(argv[i], "-maxrot"))
 		{
-			data.params.maxcylrot = atof(argv[++i]);
+			data.params.maxrot = atof(argv[++i]);
 		}
 		else if (!_stricmp(argv[i], "-w"))
 		{
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 	printf("Max Vert angle: %g rad\n", data.params.maxvangle);
 	printf("Min wrapping radius: %g\n", data.params.minrad);
 	printf("Max wrapping radius: %g\n", data.params.maxrad);
-	printf("Max cylinder rotation: %g rad\n", data.params.maxcylrot);
+	printf("Max rotation: %g rad\n", data.params.maxrot);
 	printf("Base width: %d\n", data.params.winwidth);
 	printf("Base height: %d\n", data.params.winheight);
 	printf("Max Scale: %g\n", data.params.maxscale);

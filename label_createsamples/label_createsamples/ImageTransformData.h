@@ -16,7 +16,8 @@ public:
 	float scale;
 	int width, height;
 	int x, y;
-	double r, phi;
+	double r1, r2;
+	double phi;
 	double hangle, vangle;
 	int tr_width, tr_height;
 
@@ -30,7 +31,7 @@ public:
 		double maxvangle;
 		double minrad;
 		double maxrad;
-		double maxcylrot;
+		double maxrot;
 		unsigned winwidth;
 		unsigned winheight;
 		double maxscale;

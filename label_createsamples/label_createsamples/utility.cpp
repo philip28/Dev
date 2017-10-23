@@ -4,66 +4,55 @@
 #include "BackgroundImageReader.h"
 #include "InfoWriter.h"
 
-bool WrapCylinderTransform(Mat src, Mat &dst, double r, double phi, unsigned int bgcolor)
+inline int _getcylx(double r, double phi, int l)
 {
-	double cx, cxp, xp, dcx;
-	double alpha, gamma;
-	int minx, maxx;
-	int y, l, inth;
-	int dst_width, dst_height;
+	double alpha, dx;
+
+	alpha = atan2(l, r);
+	dx = r * sin(phi + alpha);
 	
+	return (int)round(dx);
+}
+
+bool WrapConeTransform(Mat src, Mat &dst, double r1, double r2, double phi, unsigned int bgcolor)
+{
+	double cx, r, dr;
+	int minx, maxx;
+	int y, l;
+	int dst_width, dst_height;
+
 	if (src.depth() != CV_8U || src.channels() != 1 || src.dims != 2)
 	{
 		CV_Error(CV_StsBadArg, "Source must be a two-dimensional array of CV_8UC1 type.");
 		return false;
 	}
 
-	inth = src.cols / 2;
-	cx = (double)src.cols / 2; // projection of the central point on X axis
-	cxp = r * sin(phi); // central x after rotation
-	dcx = cx - cxp;
-
-	// Border points, depending on parity of cols
-	alpha = atan2(inth, r);
-	gamma = alpha + (PI / 2 - phi);
-	xp = r * cos(gamma);
-	minx = (int)(xp + dcx);
-
-	if (src.cols % 2)
-		alpha = atan2(inth, r);
-	else
-		alpha = atan2(inth-1, r);
-	gamma = (PI / 2 - phi) - alpha;
-	xp = r * cos(gamma);
-	maxx = (int)(xp + dcx);
+	cx = (double)src.cols / 2;
+	minx = MIN(MIN(_getcylx(r1, phi, -(int)cx), _getcylx(r2, phi, -(int)cx)), _getcylx((r1+r2)/2, phi, -(int)cx));
+	maxx = MAX(MAX(_getcylx(r1, phi, (int)cx-1), _getcylx(r2, phi, (int)cx-1)), _getcylx((r1+r2)/2, phi, (int)cx - 1));
 
 	// initialize dest image
-	dst_width = maxx - minx + 1;
+	dst_width = abs(maxx - minx) + 1;
 	dst_height = src.rows;
 	dst.create(dst_height, dst_width, CV_8UC1);
 	dst.setTo(Scalar(bgcolor));
 
+	dr = (r2 - r1) / dst_height;
+	r = r1;
+
 	for (y = 0; y < dst_height; y++)
 	{
-		dst.at<unsigned char>(y, 0) = src.at<unsigned char>(y, (int)(cx - inth));
-		if (src.cols % 2)
-			dst.at<unsigned char>(y, dst_width-1) = src.at<unsigned char>(y, (int)(cx + inth));
-
-		for (l = inth-1; l >= 1; l--)
+		for (l = 0; l < (int)cx; l++)
 		{
-			alpha = atan2(l, r);
-			gamma = alpha + (PI / 2 - phi); // "left" of new central point
-			xp = r * cos(gamma);
-			dst.at<unsigned char>(y, (int)(xp + dcx) - minx) = src.at<unsigned char>(y, (int)(cx - l));
-			gamma = (PI / 2 - phi) - alpha; // "right" of the new central point 
-			xp = r * cos(gamma);
-			dst.at<unsigned char>(y, (int)(xp + dcx) - minx) = src.at<unsigned char>(y, (int)(cx + l));
+			dst.at<unsigned char>(y, _getcylx(r, phi, l) - minx) = src.at<unsigned char>(y, (int)(cx + l)); // "left" of new central point
+			dst.at<unsigned char>(y, _getcylx(r, phi, -l) - minx) = src.at<unsigned char>(y, (int)(cx - l)); // "right" of new central point
 		}
 
-		// Central point
-		gamma = PI / 2 - phi;
-		xp = r * cos(gamma);
-		dst.at<unsigned char>(y, (int)(xp + dcx) - minx) = src.at<unsigned char>(y, (int)(cx));
+		// In case of an even width
+		if (!(src.cols % 2))
+			dst.at<unsigned char>(y, _getcylx(r, phi, -l) - minx) = src.at<unsigned char>(y, 0);
+
+		r += dr;
 	}
 
 	return true;
@@ -156,8 +145,8 @@ bool TransformImage(string imagename, ImageTransformData* data)
 		}
 	}
 
-	erode(data->src, img_erode, Mat(), Point(1,1), 1, BORDER_REPLICATE);
-	dilate(data->src, img_dilate, Mat(), Point(1, 1), 1, BORDER_REPLICATE);
+//	erode(data->src, img_erode, Mat(), Point(1,1), 1, BORDER_REPLICATE);
+//	dilate(data->src, img_dilate, Mat(), Point(1, 1), 1, BORDER_REPLICATE);
 
 	for (int row = 0; row < data->mask.rows; row++)
 	{
@@ -185,9 +174,10 @@ bool TransformImage(string imagename, ImageTransformData* data)
 
 	Mat img_wrap, mask_wrap;
 
-	data->r = data->r * data->src.cols / PI;
-	WrapCylinderTransform(data->src, img_wrap, data->r, data->phi, data->params.bgcolor);
-	WrapCylinderTransform(data->mask, mask_wrap, data->r, data->phi, 0);
+	data->r1 = data->r1 * data->src.cols / PI;
+	data->r2 = data->r2 * data->src.cols / PI;
+	WrapConeTransform(data->src, img_wrap, data->r1, data->r2, data->phi, data->params.bgcolor);
+	WrapConeTransform(data->mask, mask_wrap, data->r1, data->r2, data->phi, 0);
 
 	GaussianBlur(mask_wrap, mask_wrap, Size(3, 3), 0, 0);
 
@@ -217,8 +207,6 @@ bool PlaceTransformedImage(Mat background, ImageTransformData* data)
 
 	resize(data->trans_img, img, img.size());
 	resize(data->trans_mask, mask, mask.size());
-//	imshow("data->trans_img", data->trans_img);
-//	waitKey(0);
 
 	forecolordev = (int)(data->params.maxintensitydev * (2.0 * rand() / RAND_MAX - 1.0));
 	for (int row = 0; row < img.rows; row++)
@@ -273,13 +261,14 @@ void CreateTestSamples(string infoname,
 		if (data->params.maxscale < 1.0F)
 			CV_Error(CV_StsBadArg, "Scaling down not supported\n");
 
-		data->r = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
-		data->phi = data->params.maxcylrot * (1.0 - 2.0 * rand() / RAND_MAX);
+		data->r1 = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
+		data->r2 = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
+		data->phi = data->params.maxrot * (1.0 - 2.0 * rand() / RAND_MAX);
 		data->hangle = data->params.maxhangle * rand() / RAND_MAX;
 		data->vangle = data->params.maxvangle * rand() / RAND_MAX;
 
 		printf("Processing background image #%d: %s\n", pos, bgreader.imagename.c_str());
-
+		
 		TransformImage(imagename, data);
 
 		data->scale = ((float)data->params.maxscale - 1.0F) * rand() / RAND_MAX + 1.0F;
