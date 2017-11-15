@@ -1,5 +1,8 @@
 #include "utility.h"
+#include "ConfigReader.h"
 #include "ImageTransformData.h"
+
+#define CONFIG "label_createsamples.cfg"
 
 int main(int argc, char* argv[])
 {
@@ -7,98 +10,43 @@ int main(int argc, char* argv[])
 	string imagename;
 	string bgname;
 	ImageTransformData data;
+	ConfigReader config;
 
-	if (argc == 1)
+	if (!config.Create(CONFIG))
 	{
-		printf("Usage: %s\n  [-info <collection_file_name>]\n"
-			"  [-img <image_file_name>]\n"
-			"  [-bg <background_file_name>]\n"
-			"  [-num <number_of_samples = %d>]\n"
-			"  [-bgcolor <background_color = %d>]\n"
-			"  [-bgthresh <background_color_threshold = %d>]\n"
-			"  [-maxidev <max_intensity_deviation = %d>]\n"
-			"  [-maxhangle <max_horiz_rotation_angle = %f>]\n"
-			"  [-maxvangle <max_vert_rotation_angle = %f>]\n"
-			"  [-minrad <min_wrapping_radius = %f>]\n"
-			"  [-maxrad <max_wrapping_radius = %f>]\n"
-			"  [-maxrot <max_rotation = %f>]\n"
-			"  [-w <sample_width = %d>]\n  [-h <sample_height = %d>]\n"
-			"  [-maxscale <max sample scale = %f>]\n"
-			"  [-random = %s]\n",
-			argv[0], data.params.numsample, data.params.bgcolor, data.params.bgthreshold, data.params.maxintensitydev,
-			data.params.maxhangle, data.params.maxvangle, data.params.minrad, data.params.maxrad, data.params.maxrot,
-			data.params.winwidth, data.params.winheight, data.params.maxscale, data.params.random ? "true" : "false");
-
-		return 0;
+		printf("Usage: %s\n%s config file must exist.\n", argv[0], CONFIG);
+		exit(1);
 	}
 
-	for (int i = 1; i < argc; ++i)
-	{
-		if (!_stricmp(argv[i], "-info"))
-		{
-			infoname = argv[++i];
-		}
-		else if (!_stricmp(argv[i], "-img"))
-		{
-			imagename = argv[++i];
-		}
-		else if (!_stricmp(argv[i], "-bg"))
-		{
-			bgname = argv[++i];
-		}
-		else if (!_stricmp(argv[i], "-num"))
-		{
-			data.params.numsample = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-bgcolor"))
-		{
-			data.params.bgcolor = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-bgthresh"))
-		{
-			data.params.bgthreshold = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxidev"))
-		{
-			data.params.maxintensitydev = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxhangle"))
-		{
-			data.params.maxhangle = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxvangle"))
-		{
-			data.params.maxvangle = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-minrad"))
-		{
-			data.params.minrad = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxrad"))
-		{
-			data.params.maxrad = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxrot"))
-		{
-			data.params.maxrot = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-w"))
-		{
-			data.params.winwidth = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-h"))
-		{
-			data.params.winheight = atoi(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-maxscale"))
-		{
-			data.params.maxscale = atof(argv[++i]);
-		}
-		else if (!_stricmp(argv[i], "-random"))
-		{
-			data.params.random = true;
-		}
-	}
+	config.GetParamValue("infofile", infoname);
+	config.GetParamValue("imagefile", imagename);
+	config.GetParamValue("bgfile", bgname);
+	config.GetParamValue("num", data.params.numsample);
+	config.GetParamValue("bgcolor", data.params.bgcolor);
+	config.GetParamValue("bgthreshold", data.params.bgthreshold);
+	config.GetParamValue("maxintencitydev", data.params.maxintensitydev);
+	config.GetParamValue("maxxrotangle", data.params.maxxangle);
+	config.GetParamValue("maxyrotangle", data.params.maxyangle);
+	config.GetParamValue("maxzrotangle", data.params.maxzangle);
+	config.GetParamValue("mincylrad", data.params.minrad);
+	config.GetParamValue("maxcylrad", data.params.maxrad);
+	config.GetParamValue("maxcylincl", data.params.maxincl);
+	config.GetParamValue("winwidth", data.params.winwidth);
+	config.GetParamValue("winheight", data.params.winheight);
+	config.GetParamValue("maxscale", data.params.maxscale);
+	config.GetParamValue("random", data.params.random);
+	config.GetParamValue("albedo_min", data.params.albedo_min);
+	config.GetParamValue("albedo_max", data.params.albedo_max);
+	config.GetParamValue("ambient", data.params.ambient);
+	config.GetParamValue("specular_min", data.params.specular_min);
+	config.GetParamValue("specular_max", data.params.specular_max);
+	config.GetParamValue("shininess_min", data.params.shininess_min);
+	config.GetParamValue("shininess_max", data.params.shininess_max);
+	config.GetParamValue("light_color", data.params.light_color);
+	config.GetParamValue("light_intensity_min", data.params.light_intensity_min);
+	config.GetParamValue("light_intensity_max", data.params.light_intensity_max);
+	config.GetParamValue("light_x_max", data.params.light_x_max);
+	config.GetParamValue("light_y_max", data.params.light_y_max);
 
 	printf("Info file name: %s\n", infoname.c_str());
 	printf("Img file name: %s\n", imagename.c_str());
@@ -107,17 +55,18 @@ int main(int argc, char* argv[])
 	printf("BG color: %d\n", data.params.bgcolor);
 	printf("BG threshold: %d\n", data.params.bgthreshold);
 	printf("Max intensity deviation: %d\n", data.params.maxintensitydev);
-	printf("Max Horiz angle: %g rad\n", data.params.maxhangle);
-	printf("Max Vert angle: %g rad\n", data.params.maxvangle);
+	printf("Max x angle: %g rad\n", data.params.maxxangle);
+	printf("Max y angle: %g rad\n", data.params.maxyangle);
+	printf("Max z angle: %g rad\n", data.params.maxzangle);
 	printf("Min wrapping radius: %g\n", data.params.minrad);
 	printf("Max wrapping radius: %g\n", data.params.maxrad);
-	printf("Max rotation: %g rad\n", data.params.maxrot);
+	printf("Max inclination: %g\n", data.params.maxincl);
 	printf("Base width: %d\n", data.params.winwidth);
 	printf("Base height: %d\n", data.params.winheight);
 	printf("Max Scale: %g\n", data.params.maxscale);
 	if (data.params.random) printf("Using random mode\n");
 
-	printf("Creating training samples from single image applying distortions...\n");
+	printf("Creating training samples from single image applying distortion+shading...\n");
 
 	CreateTestSamples(infoname, imagename, bgname, &data);
 

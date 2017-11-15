@@ -121,16 +121,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BackgroundImageReader.cpp" />
     <ClCompile Include="createsamples.cpp" />
-    <ClCompile Include="ImageTransformData.cpp" />
-    <ClCompile Include="InfoWriter.cpp" />
     <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="algebra.h" />
     <ClInclude Include="BackgroundImageReader.h" />
+    <ClInclude Include="ConfigReader.h" />
+    <ClInclude Include="Cylinder.h" />
     <ClInclude Include="ImageTransformData.h" />
     <ClInclude Include="InfoWriter.h" />
+    <ClInclude Include="shading.h" />
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="Plane.h" />
     <ClInclude Include="utility.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

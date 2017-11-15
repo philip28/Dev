@@ -9,8 +9,6 @@
 using namespace std;
 using namespace cv;
 
-#define PI 3.1415926535
-
 void CreateTestSamples(string infoname,
 	string imagename,
 	string bgname,
@@ -20,5 +18,4 @@ bool TransformImage(string imagename, ImageTransformData* data);
 
 bool PlaceTransformedImage(Mat background, ImageTransformData* data);
 
-bool WrapCylinderTransform(Mat src, Mat dst, double r, double phi);
 bool ViewAngleTransform(Mat src, Mat dst, double xangle, double yangle, double zangle, int dist);
