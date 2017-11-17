@@ -30,3 +30,10 @@ PepsiDemo/negatives.txt
 PepsiDemo/pepsi.vec
 *.mp4
 PepsiDemo/Project/.vs/PepsiDemo/v15/.suo
+/label_createsamples/label_createsamples/algebra.h
+/label_createsamples/label_createsamples/.gitignore
+/label_createsamples/x64/Release/Pepsi_logo_2008_crop_test.png
+/label_createsamples/x64/Release/Pepsi_logo_2008_crop2.png
+/label_createsamples/x64/Release/negatives.txt
+/label_createsamples/x64/Release/label_createsamples.cfg
+/PepsiDemo/.vs/label_createsamples/v15/.suo

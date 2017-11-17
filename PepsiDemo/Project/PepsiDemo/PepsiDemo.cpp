@@ -117,15 +117,21 @@ int DetectImage(char* SrcName, char* Cascade)
 
 int main(void)
 {
-	DetectVideoCapture("D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+//	DetectVideoCapture("D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
 //	DetectVideoCapture("D:\\Dev\\PepsiDemo\\cascade_10_0.999_0.1\\cascade.xml");
+//	DetectVideoCapture("D:\\Dev\\PepsiDemo\\cascade_10_0.999_0.2_0h11m\\cascade.xml");
 //	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204830_sh_removal.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
 //	DetectImage("c:\\dev\\frames\\0001.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
 //	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204830.jpg", "D:\\Dev\\PepsiDemo\\cascade_10_0.999_0.2_0h11m\\cascade.xml");
 //	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204830.jpg", "D:\\Dev\\PepsiDemo\\cascade_10_0.999_0.1_24_2h49m\\cascade.xml");
 //	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204830.jpg", "D:\\Dev\\PepsiDemo\\cascade_10_0.999_0.2_24_0h9m\\cascade.xml");
 //	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204830.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
-//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170706_174113_crop.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20171103_131900.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+	//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204833.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204837.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170626_204840.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\sc12_00364.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
+	//	DetectImage("D:\\Dev\\PepsiDemo\\positive\\20170706_174113_crop.jpg", "D:\\Dev\\PepsiDemo\\cascade\\cascade.xml");
 
 	return 0;
 }
