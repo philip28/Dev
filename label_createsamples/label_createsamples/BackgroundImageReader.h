@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <algorithm>
 #include "opencv2/opencv.hpp"
 
 using namespace std;
@@ -37,8 +38,10 @@ public:
 	{
 		if (index >= count) return -1;
 
-		imagename = filelist[index++];
-		image = imread(imagename.c_str(), IMREAD_GRAYSCALE);
+		imagefullname = filelist[index++];
+		ExtractFileName();
+
+		image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
 		if (image.empty()) {
 			CV_Error(CV_StsBadArg, "Error opening background image");
 			return -1;
@@ -53,10 +56,11 @@ public:
 		if (index >= count) return -1;
 
 		index++;
-		pos = rand() % count;
-		pos %= count;
-		imagename = filelist[pos];
-		image = imread(imagename.c_str(), IMREAD_GRAYSCALE);
+		pos = (int)((filelist.size() - 1) * ((double)rand() / RAND_MAX));
+		imagefullname = filelist[pos];
+		ExtractFileName();
+
+		image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
 		if (image.empty()) {
 			CV_Error(CV_StsBadArg, "Error opening background image");
 			return -1;
@@ -69,6 +73,28 @@ public:
 	int pos;
 	int index;
 	cv::Mat image;
-	string imagename;
+	string imageshortname, imagefullname;
 	vector<string> filelist;
+
+private:
+	void ExtractFileName()
+	{
+		size_t found = imagefullname.rfind('\\');
+		if (found == std::string::npos) {
+			found = imagefullname.rfind('/');
+		}
+		if (found == std::string::npos) {
+			imageshortname = imagefullname;
+		}
+		else {
+			imageshortname = imagefullname.substr(found + 1, imagefullname.length() - found);
+		}
+
+		found = imageshortname.rfind('.');
+		if (found != std::string::npos) {
+			imageshortname = imageshortname.substr(0, found);
+		}
+
+		std::replace(imageshortname.begin(), imageshortname.end(), ' ', '_');
+	}
 };

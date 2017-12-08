@@ -5,7 +5,7 @@
 class Plane : public Object
 {
 public:
-	void ProjectImage8(cv::Mat src, double bgcolor = -1)
+	void ProjectImage8(cv::Mat src, double tclow = -1, double tchigh = -1)
 	{
 		point3d point;
 		double color;
@@ -16,7 +16,8 @@ public:
 			{
 				color = src.at<uchar>(y, x) / 255.0;
 				// check if transparent
-				if (bgcolor >= 0 && color != bgcolor)
+				bool tr = tclow >= 0 && tchigh >= tclow && (color >= tclow && color <= tchigh);
+				if (!tr)
 				{
 					point.coords.x = x;
 					point.coords.y = y;

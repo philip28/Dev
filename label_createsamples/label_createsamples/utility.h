@@ -13,9 +13,8 @@ void CreateTestSamples(string infoname,
 	string imagename,
 	string bgname,
 	ImageTransformData* data);
+void Visualize(string imagename, ImageTransformData* data);
 
 bool TransformImage(string imagename, ImageTransformData* data);
-
 bool PlaceTransformedImage(Mat background, ImageTransformData* data);
-
 bool ViewAngleTransform(Mat src, Mat dst, double xangle, double yangle, double zangle, int dist);

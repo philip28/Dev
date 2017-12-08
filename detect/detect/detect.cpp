@@ -13,6 +13,7 @@ namespace fs = std::experimental::filesystem;
 int detect(const fs::path& image_file, const ConfigReader& config)
 {
 	string cascade_file, output_dir;
+	string action = "outline";
 	int image_resize_width = 0, minNeighbours = 3, minSize = 0, maxSize = 0;
 	double scaleFactor = 1.1;
 
@@ -23,6 +24,7 @@ int detect(const fs::path& image_file, const ConfigReader& config)
 	config.GetParamValue("cc_scaleFactor", scaleFactor);
 	config.GetParamValue("image_resize_width", image_resize_width);
 	config.GetParamValue("output_dir", output_dir);
+	config.GetParamValue("action", action);
 
 	Mat image_src = imread(image_file.string(), IMREAD_COLOR);
 	if (image_src.empty()) throw;
@@ -42,16 +44,30 @@ int detect(const fs::path& image_file, const ConfigReader& config)
 
 	cascade.detectMultiScale(image_grey, detected_areas, scaleFactor, minNeighbours, 0, min, max);
 
-	for (int i = 0; i < detected_areas.size(); i++)
-	{
-		rectangle(image_src, detected_areas[i], Scalar(255, 0, 255), 2, LINE_4);
-	}
+	if (output_dir[output_dir.length() - 1] == '\\') output_dir.erase(output_dir.length() - 1, 1);
 
-	if (detected_areas.size())
+	if (action == "outline")
 	{
-		if (output_dir[output_dir.length() - 1] == '\\') output_dir.erase(output_dir.length() - 1, 1);
-		string output_file = output_dir + '\\' + image_file.stem().string() + "_det" + image_file.extension().string();
-		imwrite(output_file, image_src);
+		for (int i = 0; i < detected_areas.size(); i++)
+		{
+			rectangle(image_src, detected_areas[i], Scalar(255, 0, 255), 2, LINE_4);
+		}
+		if (detected_areas.size())
+		{
+			string output_file = output_dir + '\\' + image_file.stem().string() + "_outline" + image_file.extension().string();
+			imwrite(output_file, image_src);
+		}
+	}
+	else if (action == "crop")
+	{
+		for (int i = 0; i < detected_areas.size(); i++)
+		{
+			Mat crop = image_src(detected_areas[i]);
+			char buf[4];
+			sprintf_s(buf, 4, "%03d", i);
+			string output_file = output_dir + '\\' + image_file.stem().string() + "_crop" + buf + image_file.extension().string();
+			imwrite(output_file, crop);
+		}
 	}
 
 	return (int)detected_areas.size();
@@ -84,9 +100,10 @@ int main(int argc, char* argv[])
 		});
 	}
 
-	for (vector<fs::path>::iterator it = input_files.begin(); it != input_files.end(); ++it)
+	vector<fs::path>::iterator it = input_files.begin();
+	for (int i = 0; it != input_files.end(); i++, it++)
 	{
-		printf("%s: %d detected\n", (*it).string().c_str(), detect((*it).string(), config));
+		printf("#%d %s: %d detected\n", i, (*it).string().c_str(), detect((*it).string(), config));
 	}
 
 	return 0;

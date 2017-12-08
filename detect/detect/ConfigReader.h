@@ -10,7 +10,7 @@ public:
 	bool Create(std::string filename)
 	{
 		std::string line;
-		size_t div;
+		std::basic_string<char>::size_type div, rem;
 
 		std::ifstream file(filename.c_str());
 		if (!file.is_open())
@@ -19,11 +19,14 @@ public:
 		while (!file.eof())
 		{
 			getline(file, line);
+
+			if ((rem = line.find_first_of('#')) != std::string::npos) /* comment */
+				line.erase(rem, line.length() - rem);
+
 			line.erase(line.find_last_not_of(" \n\r\t") + 1);
 			if (line.empty()) continue;
-			if (line.at(0) == '#') continue; /* comment */
 
-			if (!(div = line.find_first_of('='))) continue;
+			if ((div = line.find_first_of('=')) == std::string::npos) continue;
 			if (div == line.size()) continue;
 			params[line.substr(0, div)] = line.substr(div + 1, line.size() - div);
 		}

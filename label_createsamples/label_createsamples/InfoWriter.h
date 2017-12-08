@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include "ImageTransformData.h"
 
-using namespace std;
-
 class InfoWriter
 {
 public:
@@ -40,21 +38,21 @@ public:
 		return true;
 	}
 
-	bool WriteInfo(int num, ImageTransformData* data)
+	bool WriteInfo(int num, ImageTransformData* data, string ext = ".jpg")
 	{
 		char imagename[_MAX_PATH];
 
-		sprintf(imagename, "%04d_%04d_%04d_%04d_%04d.jpg", num, data->x, data->y, data->width, data->height);
+		sprintf(imagename, "%s.%04d_%04d_%04d_%04d_%04d%s", data->bgname.c_str(), num, data->x, data->y, data->width, data->height, ext.c_str());
 		fprintf(file, "%s %d %d %d %d %d\n", imagename, 1, data->x, data->y, data->width, data->height);
 		return true;
 	}
 
-	bool WriteImage(int num, ImageTransformData* data, Mat image)
+	bool WriteImage(int num, ImageTransformData* data, Mat image, string ext = ".jpg")
 	{
 		char imagename[_MAX_PATH];
 		string fullpath;
 
-		sprintf(imagename, "%04d_%04d_%04d_%04d_%04d.jpg", num, data->x, data->y, data->width, data->height);
+		sprintf(imagename, "%s.%04d_%04d_%04d_%04d_%04d%s", data->bgname.c_str(), num, data->x, data->y, data->width, data->height, ext.c_str());
 		fullpath = folder + '\\' + imagename;
 		imwrite(fullpath.c_str(), image);
 		return true;

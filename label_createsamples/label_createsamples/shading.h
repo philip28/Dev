@@ -60,12 +60,14 @@ public:
 		objects.push_back(std::unique_ptr<Object>(o));
 	}
 
-	void Render(Plane &frame)
+	void Render(Plane &frame, bool depth = true)
 	{
 		std::vector<point3d>::iterator it, it_end;
 
 		for (int i = 0; i < objects.size(); i++)
 		{
+			if (depth) objects[i]->ZSort();
+
 			it = objects[i]->points.begin();
 			it_end = objects[i]->points.end();
 			for (; it != it_end; ++it)
@@ -108,6 +110,22 @@ public:
 	cv::Vec3d Reflect(const cv::Vec3d &I, const cv::Vec3d &N)
 	{
 		return -I + 2 * I.dot(N) * N;
+	}
+
+	void GetLightingRange(Object &o, cv::Vec3d &lmin, cv::Vec3d &lmax)
+	{
+		cv::Vec3d viewdir(0, 0, -1);
+		cv::Vec3d lx1, lx2, ly1, ly2;
+		lx1 = Reflect(-viewdir, o.Normal(o.MinX()->coords));
+		lx2 = Reflect(-viewdir, o.Normal(o.MaxX()->coords));
+		ly1 = Reflect(-viewdir, o.Normal(o.MinY()->coords));
+		ly2 = Reflect(-viewdir, o.Normal(o.MaxY()->coords));
+		lmin[0] = std::min(std::min(lx1[0], lx2[0]), std::min(ly1[0], ly2[0]));
+		lmin[1] = std::min(std::min(lx1[1], lx2[1]), std::min(ly1[1], ly2[1]));
+		lmin[2] = std::min(std::min(lx1[2], lx2[2]), std::min(ly1[2], ly2[2]));
+		lmax[0] = std::max(std::max(lx1[0], lx2[0]), std::max(ly1[0], ly2[0]));
+		lmax[1] = std::max(std::max(lx1[1], lx2[1]), std::max(ly1[1], ly2[1]));
+		lmax[2] = std::max(std::max(lx1[2], lx2[2]), std::max(ly1[2], ly2[2]));
 	}
 
 	std::vector<std::unique_ptr<Light>> lights;
