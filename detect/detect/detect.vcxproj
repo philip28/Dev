@@ -87,7 +87,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_core330d.lib;opencv_highgui330d.lib;opencv_imgcodecs330d.lib;opencv_imgproc330d.lib;opencv_video330d.lib;opencv_videoio330d.lib;opencv_objdetect330d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_core331d.lib;opencv_highgui331d.lib;opencv_imgcodecs331d.lib;opencv_imgproc331d.lib;opencv_video331d.lib;opencv_videoio331d.lib;opencv_objdetect331d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -117,7 +117,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_core330.lib;opencv_highgui330.lib;opencv_imgcodecs330.lib;opencv_imgproc330.lib;opencv_video330.lib;opencv_videoio330.lib;opencv_objdetect330.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_core331.lib;opencv_highgui331.lib;opencv_imgcodecs331.lib;opencv_imgproc331.lib;opencv_video331.lib;opencv_videoio331.lib;opencv_objdetect331.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
