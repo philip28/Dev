@@ -6,6 +6,14 @@
 
 #define PI 3.1415926535
 
+#define M_MUL_V(M, V) \
+double x = M.at<double>(0, 0) * V.x + M.at<double>(0, 1) * V.y + M.at<double>(0, 2) * V.z + M.at<double>(0, 3); \
+double y = M.at<double>(1, 0) * V.x + M.at<double>(1, 1) * V.y + M.at<double>(1, 2) * V.z + M.at<double>(1, 3); \
+double z = M.at<double>(2, 0) * V.x + M.at<double>(2, 1) * V.y + M.at<double>(2, 2) * V.z + M.at<double>(2, 3); \
+V.x = x; \
+V.y = y; \
+V.z = z;
+
 typedef struct
 {
 	unsigned char R, G, B;
@@ -73,16 +81,14 @@ public:
 		std::vector<point3d>::iterator it, it_end;
 		double x, y, z;
 
-		it = points.begin();
-		it_end = points.end();
-		for (; it != it_end; ++it)
+		for (it = points.begin(), it_end = points.end(); it != it_end; ++it)
 		{
-			x = m.at<double>(0, 0) * it->coords.x + m.at<double>(0, 1) * it->coords.y + m.at<double>(0, 2) * it->coords.z + m.at<double>(0, 3);
-			y = m.at<double>(1, 0) * it->coords.x + m.at<double>(1, 1) * it->coords.y + m.at<double>(1, 2) * it->coords.z + m.at<double>(1, 3);
-			z = m.at<double>(2, 0) * it->coords.x + m.at<double>(2, 1) * it->coords.y + m.at<double>(2, 2) * it->coords.z + m.at<double>(2, 3);
-			it->coords.x = x;
-			it->coords.y = y;
-			it->coords.z = z;
+			M_MUL_V(m, it->coords);
+		}
+
+		for (it = bg_points.begin(), it_end = bg_points.end(); it != it_end; ++it)
+		{
+			M_MUL_V(m, it->coords);
 		}
 
 		x = m.at<double>(0, 0) * center[0] + m.at<double>(0, 1) * center[1] + m.at<double>(0, 2) * center[2] + m.at<double>(0, 3);
@@ -96,8 +102,14 @@ public:
 		GetBounds();
 	}
 
-	void OutMat(cv::Mat &m, int type = CV_8U, cv::Vec3d bgcolor = 0, bool depth = true, bool square = false, bool approx = false)
+	void OutMat(cv::Mat &img, cv::Mat &alpha, int type = CV_8UC3, cv::Vec3d bgcolor = 0, cv::Vec3d fillcolor = 0, bool depth = true, bool square = false, bool approx = false)
 	{
+		if (bgcolor[0] < 0 && fillcolor[0] >= 0)
+		{
+			CV_Error(CV_StsBadArg, "Incompatible parameters.");
+			throw;
+		}
+
 		GetBounds();
 
 		int dst_width, dst_height;
@@ -116,95 +128,83 @@ public:
 		}
 
 		cv::Vec3i bgc = 255 * bgcolor;
+		cv::Vec3i fc = 255 * fillcolor;
 
-		if (type == CV_8U)
-		{
-			m.create(dst_height, dst_width, CV_8UC2); // with alpha channel
-			if (bgc[0] >= 0)
-				if (!approx)
-					m.setTo(cv::Scalar(bgc[0], 255));
-				else
-					m.setTo(cv::Scalar(bgc[0], 0));
-			else
-				m.setTo(cv::Scalar(0, 0));
-		}
-		else if (type == CV_32S)
-		{
-			m.create(dst_height, dst_width, CV_8UC4); // with alpha channel
-			if (bgc[0] >= 0)
-				if (!approx)
-					m.setTo(cv::Scalar(bgc[0], bgc[1], bgc[2], 255));
-				else
-					m.setTo(cv::Scalar(bgc[0], bgc[1], bgc[2], 0));
-			else
-				m.setTo(cv::Scalar(0, 0, 0, 0));
-		}
+		cv::Mat rgb;
+		rgb.create(dst_height, dst_width, CV_8UC3);
+		if (fc[0] >= 0)
+			rgb.setTo(cv::Scalar(fc[0], fc[1], fc[2]));
+		else
+			rgb.setTo(0);
+
+		alpha.create(dst_height, dst_width, CV_8UC1);
+		alpha.setTo(0);
 
 		// Z-buffer filtering
 		if (depth)
 			ZSort();
 
-		it = points.begin();
-		it_end = points.end();
-
-		if (type == CV_8U)
+		if (!(bgc[0] < 0)) // ignore background if transparent
 		{
-			for (; it != it_end; ++it) {
-				uchar tc = (uchar)std::max(0.0, std::min(it->value[0], 1.0) * 255);
-				m.at<Vec2b>((int)(it->coords.y - miny) + dy, (int)(it->coords.x - minx) + dx)[0] = tc;
-				m.at<Vec2b>((int)(it->coords.y - miny) + dy, (int)(it->coords.x - minx) + dx)[1] = 255;
+			for (it = bg_points.begin(), it_end = bg_points.end(); it != it_end; ++it)
+			{
+				int x = (int)(it->coords.x - minx) + dx;
+				int y = (int)(it->coords.y - miny) + dy;
+				if (x >= 0 && y >= 0 && x < dst_width && y < dst_height)
+				{
+					rgb.at<cv::Vec3b>(y, x) = bgc;
+					alpha.at<uchar>(y, x) = 255;
+				}
 			}
 		}
-		else if (type == CV_32S)
+		for (it = points.begin(), it_end = points.end(); it != it_end; ++it)
 		{
-			for (; it != it_end; ++it) {
-				cv::Vec3b tc;
-				tc[0] = (uchar)std::max(0.0, std::min(it->value[0], 1.0) * 255);
-				tc[1] = (uchar)std::max(0.0, std::min(it->value[1], 1.0) * 255);
-				tc[2] = (uchar)std::max(0.0, std::min(it->value[2], 1.0) * 255);
-				m.at<cv::Vec4b>((int)(it->coords.y - miny) + dy, (int)(it->coords.x - minx) + dx) = cv::Scalar(tc);
-				m.at<cv::Vec4b>((int)(it->coords.y - miny) + dy, (int)(it->coords.x - minx) + dx)[3] = 255;
-			}
+			cv::Vec3b tc;
+			tc[0] = (uchar)std::max(0.0, std::min(it->value[0], 1.0) * 255);
+			tc[1] = (uchar)std::max(0.0, std::min(it->value[1], 1.0) * 255);
+			tc[2] = (uchar)std::max(0.0, std::min(it->value[2], 1.0) * 255);
+			int x = (int)(it->coords.x - minx) + dx;
+			int y = (int)(it->coords.y - miny) + dy;
+			rgb.at<cv::Vec3b>(y, x) = tc;
+			alpha.at<uchar>(y, x) = 255;
 		}
 
 		// Artefact removal
 		if (approx)
 		{
-			if (type == CV_8U)
+			for (int x = 1; x < (dst_width - 1); x++)
 			{
-				for (int x = 1; x < (m.cols - 1); x++)
+				for (int y = 1; y < (dst_height - 1); y++)
 				{
-					for (int y = 1; y < (m.rows - 1); y++)
+					if (!alpha.at<uchar>(y, x))
 					{
-						if (m.at<Vec2b>(y, x)[1] == 0)
+						if (alpha.at<uchar>(y - 1, x) && alpha.at<uchar>(y + 1, x) && alpha.at<uchar>(y, x + 1) && alpha.at<uchar>(y, x - 1))
 						{
-							if (m.at<Vec2b>(y - 1, x)[1] && m.at<Vec2b>(y + 1, x)[1] && m.at<Vec2b>(y, x + 1)[1] && m.at<Vec2b>(y, x - 1)[1]) {
-								m.at<Vec2b>(y, x)[0] = (m.at<Vec2b>(y - 1, x)[0] + m.at<Vec2b>(y - 1, x)[0] + m.at<Vec2b>(y + 1, x)[0] + m.at<Vec2b>(y, x + 1)[0]) / 4;
-								m.at<Vec2b>(y, x)[1] = 255;
-							}
-							if (bgc[0] >= 0) m.at<Vec2b>(y, x)[1] = 255;
-						}
-					}
-				}
-							
-			}
-			else if (type == CV_32S)
-			{
-				for (int x = 1; x < (m.cols - 1); x++)
-				{
-					for (int y = 1; y < (m.rows - 1); y++)
-					{
-						if (m.at<Vec4b>(y, x)[3] == 0)
-						{
-							if (m.at<Vec4b>(y - 1, x)[3] && m.at<Vec4b>(y + 1, x)[3] && m.at<Vec4b>(y, x + 1)[3] && m.at<Vec4b>(y, x - 1)[3]) {
-								m.at<Vec3b>(y, x) = (m.at<Vec3b>(y - 1, x) + m.at<Vec3b>(y - 1, x) + m.at<Vec3b>(y + 1, x) + m.at<Vec3b>(y, x + 1)) / 4;
-								m.at<Vec4b>(y, x)[3] = 255;
-							}
-							if (bgc[0] >= 0) m.at<Vec2b>(y, x)[3] = 255;
+							cv::Vec3f p1 = rgb.at<cv::Vec3b>(y - 1, x);
+							cv::Vec3f p2 = rgb.at<cv::Vec3b>(y + 1, x);
+							cv::Vec3f p3 = rgb.at<cv::Vec3b>(y, x - 1);
+							cv::Vec3f p4 = rgb.at<cv::Vec3b>(y, x + 1);
+							rgb.at<cv::Vec3b>(y, x) = (p1 + p2 + p3 + p4) / 4;
+							alpha.at<uchar>(y, x) = 255;
 						}
 					}
 				}
 			}
+		}
+
+		if (fc[0] >= 0)
+			alpha.setTo(255);
+
+		// Making final image
+		if (type == CV_8UC1)
+		{
+			cv::Mat chans[3];
+			cv::split(rgb, chans);
+			img = chans[0].clone();
+		}
+		else if (type == CV_8UC3)
+		{
+			img = rgb.clone();
 		}
 	}
 
@@ -234,6 +234,9 @@ public:
 	{
 		std::sort(points.begin(), points.end(), [](point3d a, point3d b) {
 		return a.coords.z > b.coords.z;
+		});
+		std::sort(bg_points.begin(), bg_points.end(), [](point3d a, point3d b) {
+			return a.coords.z > b.coords.z;
 		});
 	}
 
@@ -274,6 +277,7 @@ public:
 
 
 	point3d_vec points;
+	point3d_vec bg_points;
 	cv::Vec3d center;
 
 	struct {

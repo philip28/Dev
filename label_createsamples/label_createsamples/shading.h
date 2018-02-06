@@ -74,6 +74,8 @@ public:
 			{
 				frame.points.push_back(CastRay(*it, *objects[i]));
 			}
+
+			frame.bg_points = objects[i]->bg_points;
 		}
 	}
 
@@ -95,7 +97,7 @@ public:
 			ambient += intensity;
 			diffuse += std::max(0.0, normal.dot(lightdir)) * intensity;
 			double rv = R.dot(viewdir);
-			specular += std::pow(std::max(0.0, R.dot(viewdir)), o.surface.shininess) * Vec3d(1, 1, 1);// *intensity;
+			specular += std::pow(std::max(0.0, R.dot(viewdir)), o.surface.shininess) * cv::Vec3d(1, 1, 1);// *intensity;
 		}
 		
 		hitpoint.value = o.surface.Ka.mul(ambient) + o.surface.Kd.mul(o.surface.albedo.mul(diffuse)) + o.surface.Ks.mul(specular);

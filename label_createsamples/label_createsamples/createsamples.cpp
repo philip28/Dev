@@ -2,20 +2,31 @@
 #include "ConfigReader.h"
 #include "ImageTransformData.h"
 
-#define CONFIG "label_createsamples.cfg"
+#define CONFIG "label_createsamples.config"
 
 int main(int argc, char* argv[])
 {
 	string infoname;
 	string imagename;
 	string bgname;
+	string config_file;
 	ImageTransformData data;
 	ConfigReader config;
 	bool visualize = false;
 
-	if (!config.Create(CONFIG))
+	for (int i = 1; i < argc; ++i)
 	{
-		printf("Usage: %s\n%s config file must exist.\n", argv[0], CONFIG);
+		if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "-visualize"))
+			visualize = true;
+		else if (!strcmp(argv[i], "-c") || !strcmp(argv[i], "-config"))
+			config_file = argv[i + 1];
+	}
+
+	if (config_file.empty()) config_file = CONFIG;
+
+	if (!config.Create(config_file))
+	{
+		printf("Usage: %s [-c config]\n", argv[0]);
 		exit(1);
 	}
 
@@ -23,7 +34,10 @@ int main(int argc, char* argv[])
 	config.GetParamValue("imagefile", imagename);
 	config.GetParamValue("bgfile", bgname);
 	config.GetParamValue("num", data.params.numsample);
-	config.GetParamValue("bg_fill_color", data.params.bg_fill_color);
+	config.GetParamValue("output_type", data.params.output_type);
+	config.GetParamValue("grayscale", data.params.grayscale);
+	config.GetParamValue("bg_color", data.params.bg_color);
+	config.GetParamValue("fill_color", data.params.fill_color);
 	config.GetParamValue("transparency_low", data.params.transparent_color_low);
 	config.GetParamValue("transparency_high", data.params.transparent_color_high);
 	config.GetParamValue("noise_removal", data.params.noise_removal);
@@ -35,6 +49,7 @@ int main(int argc, char* argv[])
 	config.GetParamValue("maxcylrad", data.params.maxrad);
 	config.GetParamValue("maxcylincl", data.params.maxincl);
 	config.GetParamValue("winsize", data.params.winsize);
+	config.GetParamValue("fixed_size", data.params.fixed_size);
 	config.GetParamValue("maxscale", data.params.maxscale);
 	config.GetParamValue("random", data.params.random);
 	config.GetParamValue("albedo_min", data.params.albedo_min);
@@ -49,13 +64,6 @@ int main(int argc, char* argv[])
 	config.GetParamValue("light_intensity_max", data.params.light_intensity_max);
 	config.GetParamValue("light_dir_dev_max", data.params.light_dir_dev_max);
 
-	for (int i = 1; i < argc; ++i)
-	{
-		if (!strcmp(argv[i], "-visualize"))
-			visualize = true;
-
-	}
-
 	if (visualize)
 	{
 		Visualize(imagename, &data);
@@ -66,7 +74,7 @@ int main(int argc, char* argv[])
 		printf("Img file name: %s\n", imagename.c_str());
 		printf("BG  file name: %s\n", bgname.c_str());
 		printf("Num: %d\n", data.params.numsample);
-		printf("BG color: %s\n", data.params.bg_fill_color.c_str());
+		printf("BG color: %s\n", data.params.fill_color.c_str());
 		printf("Max intensity deviation: %d\n", data.params.maxintensitydev);
 		printf("Max x angle: %g rad\n", data.params.maxxangle);
 		printf("Max y angle: %g rad\n", data.params.maxyangle);

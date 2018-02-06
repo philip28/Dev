@@ -8,6 +8,7 @@ class ImageTransformData
 public:
 	ImageTransformData()
 	{
+		params.output_type = "embed";
 		params.numsample = 1000;
 		params.maxintensitydev = 40;
 		params.maxxangle = 0.15; // PI/20
@@ -19,14 +20,15 @@ public:
 		params.winsize = 24;
 		params.maxscale = -1.0;
 		params.random = false;
+		params.grayscale = false;
 	};
 
-	Mat img_src, img_tran, mask;
+	Mat img_src, img_tran, alpha;
 
 	std::string bgname;
 	double maxscale, scale;
 	int width, height;
-	double bg_fill_color;
+	double bg_color, fill_color;
 	double transparent_color_low, transparent_color_high;
 	int x, y;
 	double r;
@@ -37,11 +39,15 @@ public:
 	double object_albedo;
 	double object_Ka, object_Kd, object_Ks;
 	double object_shininess;
+	std::string cascade;
 
 	struct
 	{
 		int numsample;
-		std::string bg_fill_color;
+		std::string bg_color;
+		std::string fill_color;
+		std::string output_type;
+		bool grayscale;
 		int transparent_color_low, transparent_color_high;
 		bool noise_removal;
 		int maxintensitydev;
@@ -52,6 +58,7 @@ public:
 		double maxrad;
 		double maxincl;
 		int winsize;
+		int fixed_size;
 		double maxscale;
 		bool random;
 		double albedo_min, albedo_max;

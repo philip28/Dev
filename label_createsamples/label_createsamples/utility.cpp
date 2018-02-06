@@ -70,7 +70,10 @@ bool ViewAngleTransform(Mat src, Mat dst, double xangle, double yangle, double z
 
 bool TransformImage(string imagename, ImageTransformData* data)
 {
-	data->img_src = imread(imagename, IMREAD_GRAYSCALE);
+	if (data->params.grayscale)
+		data->img_src = imread(imagename, IMREAD_GRAYSCALE);
+	else
+		data->img_src = imread(imagename);
 	if (data->img_src.empty())
 		CV_Error(CV_StsBadArg, "Error opening the source image");
 
@@ -83,13 +86,8 @@ bool TransformImage(string imagename, ImageTransformData* data)
 	label->surface.Ks = Vec3d(data->object_Ks, data->object_Ks, data->object_Ks);
 	label->surface.shininess = data->object_shininess;
 
-	label->ProjectImage8(data->img_src, data->r, data->i, data->transparent_color_low, data->transparent_color_high);
+	label->ProjectImage(data->img_src, data->r, data->i, data->transparent_color_low, data->transparent_color_high);
 	label->Rotate(data->xangle, data->yangle, data->zangle);
-
-	//label->OutMat(data->img_tran, CV_8U, Vec3d(data->bg_fill_color, data->bg_fill_color, data->bg_fill_color), false, true, true);
-	//Object::RemoveAlpha(data->img_tran, data->img_tran);
-	//imshow("frame", data->img_tran);
-	//waitKey(0);
 
 	Scene scene;
 	scene.AddObject(label);
@@ -107,10 +105,14 @@ bool TransformImage(string imagename, ImageTransformData* data)
 	Plane frame;
 	scene.Render(frame, true);
 
-	frame.OutMat(data->img_tran, CV_8U, data->bg_fill_color, false, true, data->params.noise_removal);
-//	label->OutMat(data->img_tran, data->bg_fill_color, true, true, true);
+	if (data->params.grayscale)
+		frame.OutMat(data->img_tran, data->alpha, CV_8UC1, data->bg_color, data->fill_color, false, true, data->params.noise_removal);
+	else
+		frame.OutMat(data->img_tran, data->alpha, CV_8UC3, data->bg_color, data->fill_color, false, true, data->params.noise_removal);
 
-	//imshow("frame", data->img_tran);
+	//label->OutMat(data->img_tran, data->alpha, CV_8U, Vec3d(0.5, 0.5, 0.5), data->bg_fill_color, false, true, data->params.noise_removal);
+
+	//imshow("alpha", data->alpha);
 	//waitKey(0);
 
 	//GaussianBlur(data->img_tran, data->img_tran, Size(3, 3), 0, 0);
@@ -122,30 +124,36 @@ bool TransformImage(string imagename, ImageTransformData* data)
 	return true;
 }
 
-bool PlaceTransformedImage(Mat background, ImageTransformData* data)
+void PlaceTransformedImage(ImageTransformData* data, Mat& bg)
 {
-	Mat img, mask;
-	uchar *pbg, main, alpha;
+	Mat img, a;
 
-	img.create(data->height, data->width, CV_8UC1);
+	if (data->img_tran.channels() == 1)
+		img.create(data->height, data->width, CV_8UC1);
+	else
+		img.create(data->height, data->width, CV_8UC3);
 
+	a.create(data->height, data->width, CV_8UC1);
 	resize(data->img_tran, img, img.size());
+	resize(data->alpha, a, a.size());
 
-	for (int row = 0; row < img.rows; row++)
+	if (bg.cols < img.cols || bg.rows < img.rows)
+		resize(bg, bg, img.size());
+
+	if (data->img_tran.channels() == 1)
 	{
-		for (int col = 0; col < img.cols; col++)
-		{
-			main = img.at<Vec2b>(row, col)[0];
-			pbg = &background.at<unsigned char>(data->y + row, data->x + col);
-			alpha = img.at<Vec2b>(row, col)[1];
-			if (alpha)
-				*pbg = main;
-		}
+		for (int row = 0; row < img.rows; row++)
+			for (int col = 0; col < img.cols; col++)
+				if (a.at<uchar>(row, col))
+					bg.at<uchar>(data->y + row, data->x + col) = img.at<uchar>(row, col);
 	}
-	//imshow("background", background);
-	//waitKey(0);
-
-	return true;
+	else
+	{
+		for (int row = 0; row < img.rows; row++)
+			for (int col = 0; col < img.cols; col++)
+				if (a.at<uchar>(row, col))
+					bg.at<Vec3b>(data->y + row, data->x + col) = img.at<Vec3b>(row, col);
+	}
 }
 
 void CreateTestSamples(string infoname,
@@ -161,7 +169,7 @@ void CreateTestSamples(string infoname,
 	if (infoname.empty() || imagename.empty() || bgname.empty())
 		CV_Error(CV_StsBadArg, "infoname or imagename or bgname is NULL\n");
 
-	if (!bgreader.Create(bgname))
+	if (!bgreader.Create(bgname, data->params.grayscale))
 		CV_Error(CV_StsBadArg, "Error opening background file list\n");
 
 	if (!infowriter.Create(infoname))
@@ -182,14 +190,6 @@ void CreateTestSamples(string infoname,
 
 		data->bgname = bgreader.imageshortname;
 
-		if ((data->maxscale = data->params.maxscale) < 0.0)
-		{
-			data->maxscale = MIN(0.5 * bgreader.image.cols / data->params.winsize,
-				0.5 * bgreader.image.rows / data->params.winsize);
-		}
-		if (data->maxscale < 1.0)
-			CV_Error(CV_StsBadArg, "Image is too small for window.\n");
-
 		data->r = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
 		data->xangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxxangle - data->params.maxxangle;
 		data->yangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxyangle - data->params.maxyangle;
@@ -204,17 +204,24 @@ void CreateTestSamples(string infoname,
 		data->light_color = data->params.light_color;
 		data->light_intensity = data->params.light_intensity_min + ((double)rand() / RAND_MAX) * (data->params.light_intensity_max - data->params.light_intensity_min);
 
-		if (data->params.bg_fill_color == "random")
-			data->bg_fill_color = ((double)rand() / RAND_MAX);
-		else if (data->params.bg_fill_color == "transparent")
-			data->bg_fill_color = -1;
+		if (data->params.bg_color == "random")
+			data->bg_color = ((double)rand() / RAND_MAX);
+		else if (data->params.bg_color == "transparent")
+			data->bg_color = -1;
 		else
-			data->bg_fill_color = atof(data->params.bg_fill_color.c_str()) / 255;
+			data->bg_color = atof(data->params.bg_color.c_str()) / 255.0;
 
-		//data->r = 4;
+		if (data->params.fill_color == "random")
+			data->fill_color = ((double)rand() / RAND_MAX);
+		else if (data->params.fill_color == "transparent")
+			data->fill_color = -1;
+		else
+			data->fill_color = atof(data->params.fill_color.c_str()) / 255.0;
+
+		//data->r = 6;
 		//data->i = 0.2;
-		//data->yangle = 0.1;
-		//data->xangle = 0.8;
+		//data->yangle = 0;
+		//data->xangle = 0;
 		//data->zangle = 0;
 
 		//data->light_x = -1;
@@ -226,35 +233,70 @@ void CreateTestSamples(string infoname,
 		
 		TransformImage(imagename, data);
 
-		data->scale = (data->maxscale - 1.0) * rand() / RAND_MAX + 1.0;
-		if (data->img_tran.cols >= data->img_tran.rows)
+		if (data->params.output_type == "embed")
 		{
-			data->height = (int)(data->scale * data->params.winsize);
-			data->width = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.cols / (float)data->img_tran.rows));
+			char notes[200];
+			sprintf(notes, "x=%d, y=%d, w=%d, h=%d, r=%.2f, xa=%.2f, ya=%.2f, za=%.2f, inlc=%.2f",
+				data->x, data->y, data->width, data->height, data->r, data->xangle, data->yangle, data->zangle, data->i);
+			putText(bgreader.image, notes, Point(10, 10), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
+			sprintf(notes, "bgcolor=%.2f, fillcolor=%.2f, albedo=%.2f, Ka=%.2f, Kd=%.2f, Ks=%.2f, shin=%.2f",
+				data->bg_color, data->fill_color, data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks, data->object_shininess);
+			putText(bgreader.image, notes, Point(10, 25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
+			sprintf(notes, "light_x=%.2f, light_y=%.2f, light_z=%.2f, color=%.2f, intensity=%.2f",
+				data->light_x, data->light_y, data->light_z, data->light_color, data->light_intensity);
+			putText(bgreader.image, notes, Point(10, 40), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
+
+			if ((data->maxscale = data->params.maxscale) < 0.0)
+			{
+				data->maxscale = MIN(0.5 * bgreader.image.cols / data->params.winsize,
+					0.5 * bgreader.image.rows / data->params.winsize);
+			}
+			if (data->maxscale < 1.0)
+				CV_Error(CV_StsBadArg, "Image is too small for window.\n");
+
+			data->scale = (data->maxscale - 1.0) * rand() / RAND_MAX + 1.0;
+
+			if (!data->params.fixed_size)
+			{
+				if (data->img_tran.cols >= data->img_tran.rows)
+				{
+					data->height = (int)(data->scale * data->params.winsize);
+					data->width = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.cols / (float)data->img_tran.rows));
+				}
+				else
+				{
+					data->width = (int)(data->scale * data->params.winsize);
+					data->height = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.rows / (float)data->img_tran.cols));
+				}
+			}
+			else
+				data->width = data->height = data->params.fixed_size;
+
+			data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
+			data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
+			
+			PlaceTransformedImage(data, bgreader.image);
+
+			infowriter.WriteImage(i, data, bgreader.image, ".jpg");
 		}
-		else
+		else if (data->params.output_type == "crop")
 		{
-			data->width = (int)(data->scale * data->params.winsize);
-			data->height = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.rows / (float)data->img_tran.cols));
+			if (!data->params.fixed_size)
+			{
+				data->width = data->img_tran.cols - data->img_tran.cols % data->params.winsize;
+				data->height = data->img_tran.rows - data->img_tran.rows % data->params.winsize;
+			}
+			else
+				data->width = data->height = data->params.fixed_size;
+
+			data->x = data->y = 0;
+
+			PlaceTransformedImage(data, bgreader.image);
+
+			infowriter.WriteImage(i, data, bgreader.image(Rect(data->x, data->y, data->width, data->height)), ".jpg");
 		}
-		data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
-		data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
-
-		char notes[200];
-		sprintf(notes, "x=%d, y=%d, w=%d, h=%d, r=%.2f, xa=%.2f, ya=%.2f, za=%.2f, inlc=%.2f",
-			data->x, data->y, data->width, data->height, data->r, data->xangle, data->yangle, data->zangle, data->i);
-		putText(bgreader.image, notes, Point(10, 10), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
-		sprintf(notes, "bgcolor=%.2f, albedo=%.2f, Ka=%.2f, Kd=%.2f, Ks=%.2f, shin=%.2f",
-			data->bg_fill_color, data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks, data->object_shininess);
-		putText(bgreader.image, notes, Point(10, 25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
-		sprintf(notes, "light_x=%.2f, light_y=%.2f, light_z=%.2f, color=%.2f, intensity=%.2f",
-			data->light_x, data->light_y, data->light_z, data->light_color, data->light_intensity);
-		putText(bgreader.image, notes, Point(10, 40), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
-
-		PlaceTransformedImage(bgreader.image, data);
 
 		infowriter.WriteInfo(i, data, ".jpg");
-		infowriter.WriteImage(i, data, bgreader.image, ".jpg");
 	}
 }
 
@@ -270,7 +312,7 @@ void Visualize(string imagename, ImageTransformData* data)
 	data->i = 0;
 	data->transparent_color_low = data->params.transparent_color_low / 255.0;
 	data->transparent_color_high = data->params.transparent_color_high / 255.0;
-	int bg_fill_color = -1;
+	int bg_color = 255, bg_fill_color = -1;
 	data->xangle = data->yangle = data->zangle = 0;
 	data->object_albedo = 0.5;
 	data->object_shininess = 40;
@@ -286,10 +328,11 @@ void Visualize(string imagename, ImageTransformData* data)
 	while (1)
 	{
 		data->r = r * data->img_src.cols / PI;
-		data->bg_fill_color = bg_fill_color / 255.0;
+		data->bg_color = bg_color / 255.0;
+		data->fill_color = bg_fill_color / 255.0;
 
 		auto label = new Cylinder;
-		label->ProjectImageRGB(data->img_src, data->r, data->i, data->transparent_color_low, data->transparent_color_high);
+		label->ProjectImage(data->img_src, data->r, data->i, data->transparent_color_low, data->transparent_color_high);
 		label->Rotate(data->xangle, data->yangle, data->zangle);
 
 		label->surface.albedo = Vec3d(data->object_albedo, data->object_albedo, data->object_albedo);
@@ -307,16 +350,37 @@ void Visualize(string imagename, ImageTransformData* data)
 		Plane frame;
 		scene.Render(frame);
 
-		frame.OutMat(data->img_tran, CV_32S, data->bg_fill_color, false, true, data->params.noise_removal);
+		frame.OutMat(data->img_tran, data->alpha, CV_8UC3, Vec3d(data->bg_color, data->bg_color, data->bg_color), Vec3d(data->fill_color, data->fill_color, data->fill_color),
+			false, true, data->params.noise_removal);
 		img.setTo(cv::Scalar(0));
-		Object::RemoveAlpha(data->img_tran, data->img_tran);
 		data->img_tran.copyTo(img(Rect(50, 50, data->img_tran.cols, data->img_tran.rows)));
+
+		if (!data->cascade.empty())
+		{
+			Mat image_grey;
+			cvtColor(img, image_grey, COLOR_BGR2GRAY);
+
+			vector<Rect> detected_areas;
+			vector<int> reject_levels;
+			vector<double> level_weights;
+			CascadeClassifier cascade(data->cascade);
+
+			cascade.detectMultiScale(image_grey, detected_areas);
+
+			for (int i = 0; i < detected_areas.size(); i++)
+			{
+				Rect LogoRect = detected_areas[i];
+				rectangle(img, LogoRect, Scalar(255, 0, 255), 2, LINE_4);
+			}
+		}
 
 		printf("(r) radius = %f\n"
 			"(i) inclination = %f\n"
 			"(x) x angle = %f\n"
 			"(y) y angle = %f\n"
 			"(z) z angle = %f\n"
+			"(b) backgound color = %d\n"
+			"(f) backgound fill color = %d\n"
 			"(l) albedo = %f\n"
 			"(a) K ambient = %f\n"
 			"(d) K diffuse = %f\n"
@@ -326,9 +390,12 @@ void Visualize(string imagename, ImageTransformData* data)
 			"(I) light intensity = %f\n"
 			"(X) light x = %f\n"
 			"(Y) light y = %f\n"
-			"(Z) light z = %f\n",
-			r, data->i, data->xangle, data->yangle, data->zangle, data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks,
-			(int)data->object_shininess, (int)data->light_color, data->light_intensity, data->light_x, data->light_y, data->light_z);
+			"(Z) light z = %f\n"
+			"(D) detect with cascade = %s\n",
+			r, data->i, data->xangle, data->yangle, data->zangle, (int)(data->bg_color*255), (int)(data->fill_color * 255),
+			data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks,
+			(int)data->object_shininess, (int)data->light_color, data->light_intensity, data->light_x, data->light_y, data->light_z,
+			data->cascade.c_str());
 		printf("Press a key to change transformation parameters.\n");
 		imshow("shape", img);
 		int key = waitKey(0);
@@ -362,6 +429,16 @@ void Visualize(string imagename, ImageTransformData* data)
 		{
 			printf("Enter z angle (-1.5-+1.5): ");
 			scanf("%lf", &data->zangle);
+		}
+		else if (key == 98) // b
+		{
+			printf("Enter background color (-1-+255): ");
+			scanf("%d", &bg_color);
+		}
+		else if (key == 102) // f
+		{
+			printf("Enter background fill color (-1-+255): ");
+			scanf("%d", &bg_fill_color);
 		}
 		else if (key == 108) // l
 		{
@@ -415,6 +492,13 @@ void Visualize(string imagename, ImageTransformData* data)
 		{
 			printf("Enter light z direction (-inf-+inf): ");
 			scanf("%lf", &data->light_z);
+		}
+		else if (key == 68) // D
+		{
+			char tmp[_MAX_PATH];
+			printf("Enter cascade path: ");
+			scanf("%s", &tmp);
+			data->cascade = tmp;
 		}
 	}
 }

@@ -10,7 +10,7 @@ using namespace cv;
 class BackgroundImageReader
 {
 public:
-	bool Create(string filename)
+	bool Create(string filename, bool gs = false)
 	{
 		string line;
 
@@ -31,6 +31,8 @@ public:
 			count++;
 		}
 
+		grayscale = gs;
+
 		return true;
 	}
 
@@ -41,7 +43,10 @@ public:
 		imagefullname = filelist[index++];
 		ExtractFileName();
 
-		image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+		if (grayscale)
+			image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+		else
+			image = imread(imagefullname.c_str());
 		if (image.empty()) {
 			CV_Error(CV_StsBadArg, "Error opening background image");
 			return -1;
@@ -60,7 +65,10 @@ public:
 		imagefullname = filelist[pos];
 		ExtractFileName();
 
-		image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+		if (grayscale)
+			image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+		else
+			image = imread(imagefullname.c_str());
 		if (image.empty()) {
 			CV_Error(CV_StsBadArg, "Error opening background image");
 			return -1;
@@ -97,4 +105,6 @@ private:
 
 		std::replace(imageshortname.begin(), imageshortname.end(), ' ', '_');
 	}
+
+	bool grayscale = false;
 };
