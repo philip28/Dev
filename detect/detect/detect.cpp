@@ -2,6 +2,7 @@
 #include "ConfigReader.h"
 #include <vector>
 #include <thread>
+#include <iostream>
 #include "svm.h"
 #include "svm_wrapper.h"
 #include "boost/filesystem.hpp"
@@ -15,10 +16,29 @@ using namespace tbb;
 typedef spin_mutex vector_mutex_type;
 #endif
 
-#define CONFIG "detect.config"
-
 using namespace std;
 using namespace cv;
+
+typedef struct
+{
+	string input_dir;
+	string input_file;
+	string input_type;
+	string output_dir;
+	bool extended_log = false;
+	int detect_type;
+	string model_file;
+	int image_resize_width = 0;
+	int minNeighbours = 3;
+	int minsize = 0, maxsize = 0;
+	int winSizeX = 32, winSizeY = 32;
+	double scaleFactor = 1.1;
+	string action = "outline";
+	int crop_num = 0;
+	bool crop_resize = false;
+} param_info;
+
+
 
 typedef struct
 {
@@ -176,45 +196,29 @@ void svm_hog_detectMultiScale(svm_model* model,
 	}
 }
 
-int detect(const boost::filesystem::path& image_file, const ConfigReader& config, vector<detect_info>& info, bool extended_log = true)
+int detect(const boost::filesystem::path& image_file, param_info& params, vector<detect_info>& info, bool extended_log = true)
 {
-	int detect_type;
-	string model_file;
-	int image_resize_width = 0, minNeighbours = 3, minsize = 0, maxsize = 0;
-	int winSizeX = 32, winSizeY = 32;
-	double scaleFactor = 1.1;
-
-	config.GetParamValue("detect_type", detect_type);
-	config.GetParamValue("model_file", model_file);
-	config.GetParamValue("winSizeX", winSizeX);
-	config.GetParamValue("winSizeY", winSizeY);
-	config.GetParamValue("minSize", minsize);
-	config.GetParamValue("maxSize", maxsize);
-	config.GetParamValue("minNeighbours", minNeighbours);
-	config.GetParamValue("scaleFactor", scaleFactor);
-	config.GetParamValue("image_resize_width", image_resize_width);
-
 	Mat image_src = imread(image_file.string(), IMREAD_COLOR);
 	if (image_src.empty()) throw;
 
-	if (image_resize_width)
+	if (params.image_resize_width)
 	{
-		double scale = (double)image_resize_width / image_src.cols;
+		double scale = (double)params.image_resize_width / image_src.cols;
 		resize(image_src, image_src, Size(), scale, scale);
 	}
 
-	if (detect_type == 0)
+	if (params.detect_type == 0)
 	{
 		vector<Rect> detected_areas;
 		vector<int> detected_classes;
 		vector<int> reject_levels;
 		vector<double> level_weights;
-		Size minarea(minsize, minsize), maxarea(maxsize, maxsize);
+		Size minarea(params.minsize, params.minsize), maxarea(params.maxsize, params.maxsize);
 
 		Mat image_grey;
 		cvtColor(image_src, image_grey, COLOR_BGR2GRAY);
-		CascadeClassifier cascade(model_file);
-		cascade.detectMultiScale(image_grey, detected_areas, reject_levels, level_weights, scaleFactor, minNeighbours, 0, minarea, maxarea, true);
+		CascadeClassifier cascade(params.model_file);
+		cascade.detectMultiScale(image_grey, detected_areas, reject_levels, level_weights, params.scaleFactor, params.minNeighbours, 0, minarea, maxarea, true);
 
 		for (int i = 0; i < detected_areas.size(); i++)
 		{
@@ -228,19 +232,19 @@ int detect(const boost::filesystem::path& image_file, const ConfigReader& config
 		}
 	}
 
-	else if (detect_type == 1)
+	else if (params.detect_type == 1)
 	{
 		Mat image_grey;
 		cvtColor(image_src, image_grey, COLOR_BGR2GRAY);
 
 		svm_model* model;
-		model = svm_load_model(model_file.c_str());
+		model = svm_load_model(params.model_file.c_str());
 
 		vector<detect_info> detected;
-		Size winsize(winSizeX, winSizeY);
-		Size minarea(minsize, minsize), maxarea(maxsize, maxsize);
+		Size winsize(params.winSizeX, params.winSizeY);
+		Size minarea(params.minsize, params.minsize), maxarea(params.maxsize, params.maxsize);
 
-		svm_hog_detectMultiScale(model, image_grey, detected, winsize, 4, scaleFactor, minNeighbours, minarea, maxarea, extended_log);
+		svm_hog_detectMultiScale(model, image_grey, detected, winsize, 4, params.scaleFactor, params.minNeighbours, minarea, maxarea, extended_log);
 		svm_free_and_destroy_model(&model);
 
 		for_each(detected.begin(), detected.end(), [&image_file, &info](detect_info& r)
@@ -255,45 +259,31 @@ int detect(const boost::filesystem::path& image_file, const ConfigReader& config
 	return (int)info.size();
 }
 
-int output(const ConfigReader& config, vector<detect_info>& info, bool extended_log = true)
+int output(param_info& params, vector<detect_info>& info, bool extended_log = true)
 {
 	Scalar palette[] = { {255, 0, 255}, {0, 255, 255}, {255, 255, 0}, {0, 0, 255}, {0, 255, 0}, {255, 0, 0}, {255, 255, 255} };
 
-	string output_dir;
-	string action = "outline";
-	int crop_num = 0;
+	if (params.output_dir[params.output_dir.length() - 1] == '\\') params.output_dir.erase(params.output_dir.length() - 1, 1);
 
-	config.GetParamValue("output_dir", output_dir);
-	config.GetParamValue("action", action);
-	config.GetParamValue("crop_num", crop_num);
-
-	if (output_dir[output_dir.length() - 1] == '\\') output_dir.erase(output_dir.length() - 1, 1);
-
-	boost::filesystem::path p(output_dir);
+	boost::filesystem::path p(params.output_dir);
 	if (!boost::filesystem::exists(p))
-		boost::filesystem::create_directory(p);
+	{
+		if (extended_log)
+			printf("%s does not exist, creating...\n", p.string().c_str());
+		boost::filesystem::create_directories(p);
+	}
 
-	if (action == "crop_min_weight")
+	if (params.action == "crop_min_weight")
 	{
 		sort(info.begin(), info.end(), [](detect_info a, detect_info b) {
 			return a.weight < b.weight;
 		});
-
-		if (crop_num < info.size())
-		{
-			info.erase(info.begin() + crop_num, info.end());
-		}
 	}
-	else if (action == "crop_max_weight")
+	else if (params.action == "crop_max_weight")
 	{
 		sort(info.begin(), info.end(), [](detect_info a, detect_info b) {
 			return a.weight > b.weight;
 		});
-
-		if (crop_num < info.size())
-		{
-			info.erase(info.begin() + crop_num, info.end());
-		}
 	}
 
 	string curimage;
@@ -308,7 +298,7 @@ int output(const ConfigReader& config, vector<detect_info>& info, bool extended_
 			if (image_src.empty()) throw;
 		}
 
-		if (action == "outline")
+		if (params.action == "outline")
 		{
 			rectangle(image_src, info[i].area, palette[info[i].classid], 2, LINE_4);
 			char notes[50];
@@ -317,7 +307,7 @@ int output(const ConfigReader& config, vector<detect_info>& info, bool extended_
 
 			if (i + 1 == info.size() || info[i + 1].image_file.string() != curimage)
 			{
-				string output_file = output_dir + '\\' + info[i].image_file.stem().string() + "_outline" + info[i].image_file.extension().string();
+				string output_file = params.output_dir + '\\' + info[i].image_file.stem().string() + "_outline" + info[i].image_file.extension().string();
 
 				if (extended_log)
 					printf("Writing %s...\n", output_file.c_str());
@@ -325,12 +315,20 @@ int output(const ConfigReader& config, vector<detect_info>& info, bool extended_
 				imwrite(output_file, image_src);
 			}
 		}
-		else if (action == "crop" || action == "crop_min_weight" || action == "crop_max_weight")
+		else if (params.action == "crop" || params.action == "crop_min_weight" || params.action == "crop_max_weight")
 		{
+			if (params.crop_num > 0 && params.crop_num < info.size())
+			{
+				info.erase(info.begin() + params.crop_num, info.end());
+			}
+
 			Mat crop = image_src(info[i].area);
+			if (params.crop_resize)
+				resize(crop, crop, Size(params.winSizeX, params.winSizeY));
+
 			char buf[12];
 			sprintf_s(buf, 16, "%04d_%d_%.2f", i, info[i].classid, info[i].weight);
-			string output_file = output_dir + '\\' + info[i].image_file.stem().string() + "_crop" + buf + info[i].image_file.extension().string();
+			string output_file = params.output_dir + '\\' + info[i].image_file.stem().string() + "_crop" + buf + info[i].image_file.extension().string();
 
 			if (extended_log)
 				printf("Writing %s...\n", output_file.c_str());
@@ -342,41 +340,64 @@ int output(const ConfigReader& config, vector<detect_info>& info, bool extended_
 	return i;
 }
 
-int main(int argc, char* argv[])
+void get_params(const string& config_file, param_info& params)
 {
 	ConfigReader config;
-
-	if (!config.Create(CONFIG))
+	if (!config.Create(config_file))
 	{
-		printf("Usage: %s\n%s config file must exist.\n", argv[0], CONFIG);
+		printf("Usage: detect [-c | config]\n");
 		exit(1);
 	}
 
-	string input_dir, input_file, input_type;
-	bool extended_log;
-	config.GetParamValue("input_dir", input_dir);
-	config.GetParamValue("input_file", input_file);
-	config.GetParamValue("input_type", input_type);
-	config.GetParamValue("extended_log", extended_log);
+	config.GetParamValue("input_dir", params.input_dir);
+	config.GetParamValue("input_file", params.input_file);
+	config.GetParamValue("input_type", params.input_type);
+	config.GetParamValue("extended_log", params.extended_log);
+	config.GetParamValue("detect_type", params.detect_type);
+	config.GetParamValue("model_file", params.model_file);
+	config.GetParamValue("winSizeX", params.winSizeX);
+	config.GetParamValue("winSizeY", params.winSizeY);
+	config.GetParamValue("minSize", params.minsize);
+	config.GetParamValue("maxSize", params.maxsize);
+	config.GetParamValue("minNeighbours", params.minNeighbours);
+	config.GetParamValue("scaleFactor", params.scaleFactor);
+	config.GetParamValue("image_resize_width", params.image_resize_width);
+	config.GetParamValue("output_dir", params.output_dir);
+	config.GetParamValue("action", params.action);
+	config.GetParamValue("crop_num", params.crop_num);
+	config.GetParamValue("crop_resize", params.crop_resize);
+}
+
+int main(int argc, char* argv[])
+{
+	string config_file = "detect.config";
+	for (int i = 1; i < argc; ++i)
+	{
+		if (!strcmp(argv[i], "-c") || !strcmp(argv[i], "-config"))
+			config_file = argv[i + 1];
+	}
+	
+	param_info params;
+	get_params(config_file, params);
 
 	vector<boost::filesystem::path> input_files;
-	if (input_file.size())
-		input_files.push_back(boost::filesystem::path(input_file));
+	if (params.input_file.size())
+		input_files.push_back(boost::filesystem::path(params.input_file));
 	else
-		for (auto&& x : boost::filesystem::directory_iterator(input_dir))
+		for (auto&& x : boost::filesystem::directory_iterator(params.input_dir))
 			input_files.push_back(x.path());
 
 	srand((int)time(NULL));
 
 	vector<detect_info> detected;
-	if (input_type == "random")
+	if (params.input_type == "random")
 	{
 		int i = 0;
 		while (i < input_files.size())
 		{
 			size_t f = (int)((double)rand() / RAND_MAX * (input_files.size() - 1));
 			printf("#%d %s detecting... ", i, input_files[f].string().c_str());
-			printf("...[done] %d detected\n", detect(input_files[f], config, detected, extended_log));
+			printf("...[done] %d detected\n", detect(input_files[f], params, detected, params.extended_log));
 			i++;
 		}
 	}
@@ -386,13 +407,13 @@ int main(int argc, char* argv[])
 		while (i < input_files.size())
 		{
 			printf("#%d %s detecting... ", i, input_files[i].filename().string().c_str());
-			printf("...[done] %d detected\n", detect(input_files[i], config, detected, extended_log));
+			printf("...[done] %d detected\n", detect(input_files[i], params, detected, params.extended_log));
 			i++;
 		}
 	}
 
 	printf("Writing output...");
-	int d = output(config, detected);
+	int d = output(params, detected);
 	printf("...[done]\n");
 
 	return d;

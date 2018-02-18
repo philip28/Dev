@@ -1,66 +1,66 @@
 #pragma once
 
 #include <string>
-#include <stdio.h>
+#include <fstream>
+#include "boost/filesystem.hpp"
 #include "ImageTransformData.h"
 
 class InfoWriter
 {
 public:
-	InfoWriter() : fInitialized(false) {}
+	InfoWriter() {}
 	~InfoWriter()
 	{
-		if (fInitialized)
-			fclose(file);
+		if (info_file.is_open())
+			info_file.close();
 	};
 
-	bool Create(string filename)
+	bool Create(std::string o, std::string i)
 	{
-		const char* dir = NULL;
+		output_dir = boost::filesystem::path(o);
+		info_name = boost::filesystem::path(i);
 
-		file = fopen(filename.c_str(), "w");
-		if (file == NULL)
-			return false;
+		if (!boost::filesystem::exists(output_dir))
+			boost::filesystem::create_directory(output_dir);
 
-		size_t found = filename.rfind('\\');
-		if (found == string::npos) {
-			found = filename.rfind('/');
+		if (!i.empty())
+		{
+			boost::filesystem::path fullname = output_dir;
+			fullname /= info_name;
+			info_file = boost::filesystem::ofstream(fullname, std::ios::out);
+			if (!info_file.is_open())
+				return false;
 		}
-		if (found == string::npos) {
-			folder = "";
-		}
-		else {
-			folder = filename.substr(0, found);
-		}
-
-		fInitialized = true;
 
 		return true;
 	}
 
-	bool WriteInfo(int num, ImageTransformData* data, string ext = ".jpg")
+	bool WriteInfo(int num, ImageTransformData* data, std::string ext = ".jpg")
 	{
+		if (!info_file.is_open())	// No info file requested, so do nothing
+			return true;
+		
 		char imagename[_MAX_PATH];
 
 		sprintf(imagename, "%s.%04d_%04d_%04d_%04d_%04d%s", data->bgname.c_str(), num, data->x, data->y, data->width, data->height, ext.c_str());
-		fprintf(file, "%s %d %d %d %d %d\n", imagename, 1, data->x, data->y, data->width, data->height);
+		info_file << imagename << " " << 1 << " " << data->x << " " << data->y << " " << data->width << " " << data->height << std::endl;
 		return true;
 	}
 
-	bool WriteImage(int num, ImageTransformData* data, Mat image, string ext = ".jpg")
+	bool WriteImage(int num, ImageTransformData* data, cv::Mat image, std::string ext = ".jpg")
 	{
 		char imagename[_MAX_PATH];
-		string fullpath;
 
 		sprintf(imagename, "%s.%04d_%04d_%04d_%04d_%04d%s", data->bgname.c_str(), num, data->x, data->y, data->width, data->height, ext.c_str());
-		fullpath = folder + '\\' + imagename;
-		imwrite(fullpath.c_str(), image);
+		boost::filesystem::path fullpath = output_dir;
+		fullpath /= boost::filesystem::path(imagename);
+		imwrite(fullpath.string(), image);
 		return true;
 	}
 
 private:
-	bool fInitialized;
-	FILE* file;
-	string folder;
+	std::ofstream info_file;
+	boost::filesystem::path output_dir;
+	boost::filesystem::path info_name;
 };
 

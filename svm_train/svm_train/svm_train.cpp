@@ -9,8 +9,6 @@
 using namespace cv;
 using namespace std;
 
-#define CONFIG "svm_train.config"
-
 void load_images(const String& dirname, vector<Mat>& img_list, Size patchsize = Size(), int numpatch = 1)
 {
 	vector<String> files;
@@ -72,7 +70,7 @@ void compute_HOG(const Size wsize, const vector<Mat> & img_list, vector<Mat> & h
 
 int main(int argc, char** argv)
 {
-	string config_file;
+	string config_file = "svm_train.config";
 	string model_file_name, neg_dir;
 	ConfigReader config;
 	int detector_width = 0, detector_height = 0, num_samples = 1;
@@ -84,9 +82,7 @@ int main(int argc, char** argv)
 			config_file = argv[i + 1];
 	}
 
-	if (config_file.empty()) config_file = CONFIG;
-
-	if (!config.Create(CONFIG))
+	if (!config.Create(config_file))
 	{
 		clog << "Usage: " << argv[0] << " [-c config]" << endl;
 		exit(1);

@@ -7,6 +7,9 @@
 #include "InfoWriter.h"
 #include "shading.h"
 
+using namespace std;
+using namespace cv;
+
 bool ViewAngleTransform(Mat src, Mat dst, double xangle, double yangle, double zangle, int dist)
 {
 	Size size = src.size();
@@ -156,147 +159,176 @@ void PlaceTransformedImage(ImageTransformData* data, Mat& bg)
 	}
 }
 
-void CreateTestSamples(string infoname,
-	string imagename,
-	string bgname,
-	ImageTransformData* data)
+void CreateTestSamples(string imagename, ImageTransformData* data)
 {
 	BackgroundImageReader bgreader;
 	InfoWriter infowriter;
 
 	int i, pos;
 	
-	if (infoname.empty() || imagename.empty() || bgname.empty())
-		CV_Error(CV_StsBadArg, "infoname or imagename or bgname is NULL\n");
+	if (imagename.empty())
+		CV_Error(CV_StsBadArg, "image_file is missing\n");
 
-	if (!bgreader.Create(bgname, data->params.grayscale))
-		CV_Error(CV_StsBadArg, "Error opening background file list\n");
+	if (data->bgname.empty() && data->background_dir.empty())
+		CV_Error(CV_StsBadArg, "background files are missing\n");
 
-	if (!infowriter.Create(infoname))
-		CV_Error(CV_StsBadArg, "Error opening info file\n");
+	if (!data->background_dir.empty())
+		data->bgname = data->background_dir; // directory prevails
+
+	if (!bgreader.Create(data->bgname, data->params.grayscale))
+		CV_Error(CV_StsBadArg, "error opening background file list\n");
+
+	if (data->output_dir.empty())
+		CV_Error(CV_StsBadArg, "output dir is missing\n");
+
+	if (!infowriter.Create(data->output_dir, data->info_file))
+		CV_Error(CV_StsBadArg, "error opening info file\n");
 	
 	data->transparent_color_low = data->params.transparent_color_low / 255.0;
 	data->transparent_color_high = data->params.transparent_color_high / 255.0;
 
-	if (data->params.numsample > 0 && data->params.numsample < bgreader.count)
-		bgreader.count = data->params.numsample;
+	if (data->params.num_bg_files > 0 && data->params.num_bg_files < bgreader.count)
+		bgreader.count = data->params.num_bg_files;
 
 	for (i = 0; i < bgreader.count; i++)
 	{
-		if (data->params.random)
+		if (data->params.random_bg_file)
 			pos = bgreader.NextRandom();
 		else
 			pos = bgreader.Next();
 
 		data->bgname = bgreader.imageshortname;
 
-		data->r = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
-		data->xangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxxangle - data->params.maxxangle;
-		data->yangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxyangle - data->params.maxyangle;
-		data->zangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxzangle - data->params.maxzangle;
-		data->i = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxincl - data->params.maxincl;
-
-		data->object_albedo = data->params.albedo_min + ((double)rand() / RAND_MAX) * (data->params.albedo_max - data->params.albedo_min);
-		data->object_Ka = data->params.ambient;
-		data->object_Ks = data->params.specular_min + ((double)rand() / RAND_MAX) * (data->params.specular_max - data->params.specular_min);
-		data->object_Kd = 0.9 - data->object_Ks;
-		data->object_shininess = data->params.shininess_min + ((double)rand() / RAND_MAX) * (data->params.shininess_max - data->params.shininess_min);
-		data->light_color = data->params.light_color;
-		data->light_intensity = data->params.light_intensity_min + ((double)rand() / RAND_MAX) * (data->params.light_intensity_max - data->params.light_intensity_min);
-
-		if (data->params.bg_color == "random")
-			data->bg_color = ((double)rand() / RAND_MAX);
-		else if (data->params.bg_color == "transparent")
-			data->bg_color = -1;
-		else
-			data->bg_color = atof(data->params.bg_color.c_str()) / 255.0;
-
-		if (data->params.fill_color == "random")
-			data->fill_color = ((double)rand() / RAND_MAX);
-		else if (data->params.fill_color == "transparent")
-			data->fill_color = -1;
-		else
-			data->fill_color = atof(data->params.fill_color.c_str()) / 255.0;
-
-		//data->r = 6;
-		//data->i = 0.2;
-		//data->yangle = 0;
-		//data->xangle = 0;
-		//data->zangle = 0;
-
-		//data->light_x = -1;
-		//data->light_y = 0;
-		//data->light_color = 1;
-		//data->light_intensity = 2;
-
-		printf("Processing background image #%d: %s\n", pos, bgreader.imagefullname.c_str());
-		
-		TransformImage(imagename, data);
-
-		if (data->params.output_type == "embed")
+		for (int s = 0; s < data->params.num_samples_per_file; s++)
 		{
-			char notes[200];
-			sprintf(notes, "x=%d, y=%d, w=%d, h=%d, r=%.2f, xa=%.2f, ya=%.2f, za=%.2f, inlc=%.2f",
-				data->x, data->y, data->width, data->height, data->r, data->xangle, data->yangle, data->zangle, data->i);
-			putText(bgreader.image, notes, Point(10, 10), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
-			sprintf(notes, "bgcolor=%.2f, fillcolor=%.2f, albedo=%.2f, Ka=%.2f, Kd=%.2f, Ks=%.2f, shin=%.2f",
-				data->bg_color, data->fill_color, data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks, data->object_shininess);
-			putText(bgreader.image, notes, Point(10, 25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
-			sprintf(notes, "light_x=%.2f, light_y=%.2f, light_z=%.2f, color=%.2f, intensity=%.2f",
-				data->light_x, data->light_y, data->light_z, data->light_color, data->light_intensity);
-			putText(bgreader.image, notes, Point(10, 40), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
 
-			if ((data->maxscale = data->params.maxscale) < 0.0)
+			data->r = data->params.minrad + ((double)rand() / RAND_MAX) * (data->params.maxrad - data->params.minrad);
+			data->xangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxxangle - data->params.maxxangle;
+			data->yangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxyangle - data->params.maxyangle;
+			data->zangle = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxzangle - data->params.maxzangle;
+			data->i = (double)rand() / (RAND_MAX + 1) * 2 * data->params.maxincl - data->params.maxincl;
+
+			data->object_albedo = data->params.albedo_min + ((double)rand() / RAND_MAX) * (data->params.albedo_max - data->params.albedo_min);
+			data->object_Ka = data->params.ambient;
+			data->object_Ks = data->params.specular_min + ((double)rand() / RAND_MAX) * (data->params.specular_max - data->params.specular_min);
+			data->object_Kd = 0.9 - data->object_Ks;
+			data->object_shininess = data->params.shininess_min + ((double)rand() / RAND_MAX) * (data->params.shininess_max - data->params.shininess_min);
+			data->light_color = data->params.light_color;
+			data->light_intensity = data->params.light_intensity_min + ((double)rand() / RAND_MAX) * (data->params.light_intensity_max - data->params.light_intensity_min);
+
+			if (data->params.bg_color == "random")
+				data->bg_color = ((double)rand() / RAND_MAX);
+			else if (data->params.bg_color == "transparent")
+				data->bg_color = -1;
+			else
+				data->bg_color = atof(data->params.bg_color.c_str()) / 255.0;
+
+			if (data->params.fill_color == "random")
+				data->fill_color = ((double)rand() / RAND_MAX);
+			else if (data->params.fill_color == "transparent")
+				data->fill_color = -1;
+			else
+				data->fill_color = atof(data->params.fill_color.c_str()) / 255.0;
+
+			//data->r = 6;
+			//data->i = 0.2;
+			//data->yangle = 0;
+			//data->xangle = 0;
+			//data->zangle = 0;
+
+			//data->light_x = -1;
+			//data->light_y = 0;
+			//data->light_color = 1;
+			//data->light_intensity = 2;
+
+			printf("Processing background image #%d: %s\n", pos, bgreader.imagefullname.c_str());
+
+			if (data->params.output_type == "embed")	// Image is placed over background with predefined fill color and opacity 
 			{
-				data->maxscale = MIN(0.5 * bgreader.image.cols / data->params.winsize,
-					0.5 * bgreader.image.rows / data->params.winsize);
-			}
-			if (data->maxscale < 1.0)
-				CV_Error(CV_StsBadArg, "Image is too small for window.\n");
+				TransformImage(imagename, data);
 
-			data->scale = (data->maxscale - 1.0) * rand() / RAND_MAX + 1.0;
+				char notes[200];
+				sprintf(notes, "x=%d, y=%d, w=%d, h=%d, r=%.2f, xa=%.2f, ya=%.2f, za=%.2f, inlc=%.2f",
+					data->x, data->y, data->width, data->height, data->r, data->xangle, data->yangle, data->zangle, data->i);
+				putText(bgreader.image, notes, Point(10, 10), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
+				sprintf(notes, "bgcolor=%.2f, fillcolor=%.2f, albedo=%.2f, Ka=%.2f, Kd=%.2f, Ks=%.2f, shin=%.2f",
+					data->bg_color, data->fill_color, data->object_albedo, data->object_Ka, data->object_Kd, data->object_Ks, data->object_shininess);
+				putText(bgreader.image, notes, Point(10, 25), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
+				sprintf(notes, "light_x=%.2f, light_y=%.2f, light_z=%.2f, color=%.2f, intensity=%.2f",
+					data->light_x, data->light_y, data->light_z, data->light_color, data->light_intensity);
+				putText(bgreader.image, notes, Point(10, 40), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(255, 255, 255), 1);
 
-			if (!data->params.fixed_size)
-			{
-				if (data->img_tran.cols >= data->img_tran.rows)
+				if ((data->maxscale = data->params.maxscale) < 0.0)
 				{
-					data->height = (int)(data->scale * data->params.winsize);
-					data->width = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.cols / (float)data->img_tran.rows));
+					data->maxscale = MIN(0.5 * bgreader.image.cols / data->params.winsize,
+						0.5 * bgreader.image.rows / data->params.winsize);
+				}
+				if (data->maxscale < 1.0)
+					CV_Error(CV_StsBadArg, "Image is too small for window\n");
+
+				data->scale = (data->maxscale - 1.0) * rand() / RAND_MAX + 1.0;
+
+				if (!data->params.fixed_size)
+				{
+					if (data->img_tran.cols >= data->img_tran.rows)
+					{
+						data->height = (int)(data->scale * data->params.winsize);
+						data->width = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.cols / (float)data->img_tran.rows));
+					}
+					else
+					{
+						data->width = (int)(data->scale * data->params.winsize);
+						data->height = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.rows / (float)data->img_tran.cols));
+					}
 				}
 				else
-				{
-					data->width = (int)(data->scale * data->params.winsize);
-					data->height = (int)((data->scale * data->params.winsize) * ((float)data->img_tran.rows / (float)data->img_tran.cols));
-				}
+					data->width = data->height = data->params.fixed_size;
+
+				data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
+				data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
+
+				PlaceTransformedImage(data, bgreader.image);
+
+				infowriter.WriteInfo(i, data, ".jpg");
 			}
-			else
+			else if (data->params.output_type == "crop")	// Image is placed over a background patch sized equal to image
+			{
+				TransformImage(imagename, data);
+
+				if (!data->params.fixed_size)
+				{
+					data->width = data->img_tran.cols - data->img_tran.cols % data->params.winsize;
+					data->height = data->img_tran.rows - data->img_tran.rows % data->params.winsize;
+				}
+				else
+					data->width = data->height = data->params.fixed_size;
+
+				data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
+				data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
+
+				PlaceTransformedImage(data, bgreader.image);
+
+				infowriter.WriteImage(i, data, bgreader.image(Rect(data->x, data->y, data->width, data->height)), ".jpg");
+				infowriter.WriteInfo(i, data, ".jpg");
+			}
+			else if (data->params.output_type == "patch")	// Just the background path of fixed size (for negatives generation)
+			{
+				if (!data->params.fixed_size)
+					CV_Error(CV_StsBadArg, "Patch mode requires fixed size\n");
+
 				data->width = data->height = data->params.fixed_size;
+				data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
+				data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
 
-			data->x = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.cols - data->width));
-			data->y = (int)((0.1 + 0.8 * rand() / RAND_MAX) * (bgreader.image.rows - data->height));
-			
-			PlaceTransformedImage(data, bgreader.image);
+				infowriter.WriteImage(i, data, bgreader.image(Rect(data->x, data->y, data->width, data->height)), ".jpg");
+			}
+		}
 
+
+		if (data->params.output_type == "embed")	// Write it only when all samples are placed 
+		{
 			infowriter.WriteImage(i, data, bgreader.image, ".jpg");
 		}
-		else if (data->params.output_type == "crop")
-		{
-			if (!data->params.fixed_size)
-			{
-				data->width = data->img_tran.cols - data->img_tran.cols % data->params.winsize;
-				data->height = data->img_tran.rows - data->img_tran.rows % data->params.winsize;
-			}
-			else
-				data->width = data->height = data->params.fixed_size;
-
-			data->x = data->y = 0;
-
-			PlaceTransformedImage(data, bgreader.image);
-
-			infowriter.WriteImage(i, data, bgreader.image(Rect(data->x, data->y, data->width, data->height)), ".jpg");
-		}
-
-		infowriter.WriteInfo(i, data, ".jpg");
 	}
 }
 

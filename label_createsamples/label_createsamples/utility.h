@@ -6,15 +6,9 @@
 #include <math.h>
 #include "ImageTransformData.h"
 
-using namespace std;
-using namespace cv;
+void CreateTestSamples(std::string imagename, ImageTransformData* data);
+void Visualize(std::string imagename, ImageTransformData* data);
 
-void CreateTestSamples(string infoname,
-	string imagename,
-	string bgname,
-	ImageTransformData* data);
-void Visualize(string imagename, ImageTransformData* data);
-
-bool TransformImage(string imagename, ImageTransformData* data);
-bool PlaceTransformedImage(Mat background, ImageTransformData* data);
-bool ViewAngleTransform(Mat src, Mat dst, double xangle, double yangle, double zangle, int dist);
+bool TransformImage(std::string imagename, ImageTransformData* data);
+bool PlaceTransformedImage(cv::Mat background, ImageTransformData* data);
+bool ViewAngleTransform(cv::Mat src, cv::Mat dst, double xangle, double yangle, double zangle, int dist);

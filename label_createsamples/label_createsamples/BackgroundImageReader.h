@@ -3,32 +3,50 @@
 #include <string>
 #include <algorithm>
 #include "opencv2/opencv.hpp"
-
-using namespace std;
-using namespace cv;
+#include "boost/filesystem.hpp"
 
 class BackgroundImageReader
 {
 public:
-	bool Create(string filename, bool gs = false)
+	bool Create(std::string filename, bool gs = false)
 	{
-		string line;
+		boost::filesystem::path p(filename);
 
-		ifstream file(filename.c_str());
-		if (!file.is_open())
+		if (!boost::filesystem::exists(p))
 			return false;
 
 		count = 0;
 		pos = 0;
 		index = 0;
-		while (!file.eof())
+
+		if (boost::filesystem::is_regular_file(p))
 		{
-			getline(file, line);
-			line.erase(line.find_last_not_of(" \n\r\t") + 1);
-			if (line.empty()) continue;
-			if (line.at(0) == '#') continue; /* comment */
-			filelist.push_back(line);
-			count++;
+			std::string line;
+
+			std::ifstream file(filename.c_str());
+			if (!file.is_open())
+				return false;
+
+			while (!file.eof())
+			{
+				getline(file, line);
+				line.erase(line.find_last_not_of(" \n\r\t") + 1);
+				if (line.empty()) continue;
+				if (line.at(0) == '#') continue; /* comment */
+				filelist.push_back(line);
+				count++;
+			}
+		}
+		else
+		{
+			for (auto&& x : boost::filesystem::directory_iterator(p))
+			{
+				if (boost::filesystem::is_regular_file(x.path()))
+				{
+					filelist.push_back(x.path().string());
+					count++;
+				}
+			}
 		}
 
 		grayscale = gs;
@@ -44,11 +62,11 @@ public:
 		ExtractFileName();
 
 		if (grayscale)
-			image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+			image = cv::imread(imagefullname.c_str(), cv::IMREAD_GRAYSCALE);
 		else
-			image = imread(imagefullname.c_str());
+			image = cv::imread(imagefullname.c_str());
 		if (image.empty()) {
-			CV_Error(CV_StsBadArg, "Error opening background image");
+			CV_Error(CV_StsBadArg, "Error opening background image " + imagefullname);
 			return -1;
 		}
 		pos++;
@@ -66,9 +84,9 @@ public:
 		ExtractFileName();
 
 		if (grayscale)
-			image = imread(imagefullname.c_str(), IMREAD_GRAYSCALE);
+			image = cv::imread(imagefullname.c_str(), cv::IMREAD_GRAYSCALE);
 		else
-			image = imread(imagefullname.c_str());
+			image = cv::imread(imagefullname.c_str());
 		if (image.empty()) {
 			CV_Error(CV_StsBadArg, "Error opening background image");
 			return -1;
@@ -77,12 +95,12 @@ public:
 		return pos;
 	}
 
-	int count;
-	int pos;
-	int index;
+	int count = 0;
+	int pos = 0;
+	int index = 0;
 	cv::Mat image;
-	string imageshortname, imagefullname;
-	vector<string> filelist;
+	std::string imageshortname, imagefullname;
+	std::vector<std::string> filelist;
 
 private:
 	void ExtractFileName()

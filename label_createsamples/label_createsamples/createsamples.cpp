@@ -2,14 +2,12 @@
 #include "ConfigReader.h"
 #include "ImageTransformData.h"
 
-#define CONFIG "label_createsamples.config"
+using namespace std;
 
 int main(int argc, char* argv[])
 {
-	string infoname;
 	string imagename;
-	string bgname;
-	string config_file;
+	string config_file = "label_createsamples.config";
 	ImageTransformData data;
 	ConfigReader config;
 	bool visualize = false;
@@ -22,24 +20,26 @@ int main(int argc, char* argv[])
 			config_file = argv[i + 1];
 	}
 
-	if (config_file.empty()) config_file = CONFIG;
-
 	if (!config.Create(config_file))
 	{
-		printf("Usage: %s [-c config]\n", argv[0]);
+		printf("Usage: %s [-c | config]\n", argv[0]);
 		exit(1);
 	}
 
-	config.GetParamValue("infofile", infoname);
-	config.GetParamValue("imagefile", imagename);
-	config.GetParamValue("bgfile", bgname);
-	config.GetParamValue("num", data.params.numsample);
+	config.GetParamValue("image_file", imagename);
+	config.GetParamValue("output_dir", data.output_dir);
+	config.GetParamValue("info_file", data.info_file);
+	config.GetParamValue("background_dir", data.background_dir);
+	config.GetParamValue("bgfile", data.bgname);
+	config.GetParamValue("num_bg_files", data.params.num_bg_files);
+	config.GetParamValue("num_samples_per_file", data.params.num_samples_per_file);
 	config.GetParamValue("output_type", data.params.output_type);
+	config.GetParamValue("randomize", data.params.randomize);
 	config.GetParamValue("grayscale", data.params.grayscale);
 	config.GetParamValue("bg_color", data.params.bg_color);
 	config.GetParamValue("fill_color", data.params.fill_color);
-	config.GetParamValue("transparency_low", data.params.transparent_color_low);
-	config.GetParamValue("transparency_high", data.params.transparent_color_high);
+	config.GetParamValue("transparent_color_low", data.params.transparent_color_low);
+	config.GetParamValue("transparent_color_high", data.params.transparent_color_high);
 	config.GetParamValue("noise_removal", data.params.noise_removal);
 	config.GetParamValue("maxintencitydev", data.params.maxintensitydev);
 	config.GetParamValue("maxxrotangle", data.params.maxxangle);
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 	config.GetParamValue("winsize", data.params.winsize);
 	config.GetParamValue("fixed_size", data.params.fixed_size);
 	config.GetParamValue("maxscale", data.params.maxscale);
-	config.GetParamValue("random", data.params.random);
+	config.GetParamValue("random_bg_file", data.params.random_bg_file);
 	config.GetParamValue("albedo_min", data.params.albedo_min);
 	config.GetParamValue("albedo_max", data.params.albedo_max);
 	config.GetParamValue("ambient", data.params.ambient);
@@ -70,10 +70,10 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		printf("Info file name: %s\n", infoname.c_str());
+		printf("Info file name: %s\n", data.info_file.c_str());
 		printf("Img file name: %s\n", imagename.c_str());
-		printf("BG  file name: %s\n", bgname.c_str());
-		printf("Num: %d\n", data.params.numsample);
+		printf("BG  file name: %s\n", data.bgname.c_str());
+		printf("Num: %d\n", data.params.num_bg_files);
 		printf("BG color: %s\n", data.params.fill_color.c_str());
 		printf("Max intensity deviation: %d\n", data.params.maxintensitydev);
 		printf("Max x angle: %g rad\n", data.params.maxxangle);
@@ -84,11 +84,14 @@ int main(int argc, char* argv[])
 		printf("Max inclination: %g\n", data.params.maxincl);
 		printf("Window size: %d\n", data.params.winsize);
 		printf("Max Scale: %g\n", data.params.maxscale);
-		if (data.params.random) printf("Using random mode\n");
+		if (data.params.random_bg_file) printf("Using random background file selection mode\n");
 
 		printf("Creating training samples from single image applying distortion+shading...\n");
 
-		CreateTestSamples(infoname, imagename, bgname, &data);
+		if (data.params.randomize)
+			srand((int)time(NULL));
+
+		CreateTestSamples(imagename, &data);
 	}
 
 	return 0;

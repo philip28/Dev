@@ -2,7 +2,6 @@
 
 #include <vector>
 #include "opencv2/opencv.hpp"
-//#include "algebra.h"
 
 #define PI 3.1415926535
 
@@ -37,7 +36,7 @@ class Object
 public:
 	void Shift(double x, double y, double z)
 	{
-		Mat M = (Mat_<double>(4, 4) <<
+		cv::Mat M = (cv::Mat_<double>(4, 4) <<
 			1, 0, 0, x,
 			0, 1, 0, y,
 			0, 0, 1, z,
@@ -49,28 +48,28 @@ public:
 	void Rotate(double xangle, double yangle, double zangle)
 	{
 		// Rotate around X axis
-		Mat RX = (Mat_<double>(4, 4) <<
+		cv::Mat RX = (cv::Mat_<double>(4, 4) <<
 			1, 0, 0, 0,
 			0, cos(xangle), sin(xangle), 0,
 			0, -sin(xangle), cos(xangle), 0,
 			0, 0, 0, 1);
 
 		// Rotate around Y axis
-		Mat RY = (Mat_<double>(4, 4) <<
+		cv::Mat RY = (cv::Mat_<double>(4, 4) <<
 			cos(yangle), 0, sin(yangle), 0,
 			0, 1, 0, 0,
 			-sin(yangle), 0, cos(yangle), 0,
 			0, 0, 0, 1);
 
 		// Rotate around Z axis
-		Mat RZ = (Mat_<double>(4, 4) <<
+		cv::Mat RZ = (cv::Mat_<double>(4, 4) <<
 			cos(zangle), sin(zangle), 0, 0,
 			-sin(zangle), cos(zangle), 0, 0,
 			0, 0, 1, 0,
 			0, 0, 0, 1);
 
 		// Composed matrix M->RY->RX->RZ
-		Mat R = RZ * RX * RY;
+		cv::Mat R = RZ * RX * RY;
 
 		Transform(R);
 	};

@@ -1,6 +1,5 @@
 #pragma once
 
-//#include "algebra.h"
 #include <algorithm>
 #include <vector>
 #include <memory>

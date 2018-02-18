@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -20,8 +20,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{9EEFACA7-ECCF-463B-B63C-0B8A1330C303}</ProjectGuid>
-    <RootNamespace>detect</RootNamespace>
+    <ProjectGuid>{0DC31501-1B47-47DD-BE98-23B4716E6BFF}</ProjectGuid>
+    <RootNamespace>train</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -75,6 +75,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -82,15 +83,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <LanguageStandard>
-      </LanguageStandard>
-      <AdditionalIncludeDirectories>%OPENCV_DIR%\include;%LIBSVM_DIR%;d:\dev\ConfigReader;%INTEL_LIB_DIR%\tbb\include;%BOOST_DIR%</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);HAVE_TBB;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
-    <Link>
-      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib;%LIBSVM_DIR%\windows;;%INTEL_LIB_DIR%\tbb\lib\intel64\vc14;%BOOST_DIR%\stage\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_core331d.lib;opencv_highgui331d.lib;opencv_imgcodecs331d.lib;opencv_imgproc331d.lib;opencv_video331d.lib;opencv_videoio331d.lib;opencv_objdetect331d.lib;libsvmd.lib;tbb_debug.lib;libboost_filesystem-vc141-mt-gd-x64-1_66.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -99,6 +93,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -112,20 +107,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>%OPENCV_DIR%\include;%LIBSVM_DIR%;d:\dev\ConfigReader;%INTEL_LIB_DIR%\tbb\include;%BOOST_DIR%</AdditionalIncludeDirectories>
-      <LanguageStandard>
-      </LanguageStandard>
-      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);HAVE_TBB;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib;%LIBSVM_DIR%\windows;;%INTEL_LIB_DIR%\tbb\lib\intel64\vc14;%BOOST_DIR%\stage\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_core331.lib;opencv_highgui331.lib;opencv_imgcodecs331.lib;opencv_imgproc331.lib;opencv_video331.lib;opencv_videoio331.lib;opencv_objdetect331.lib;libsvm.lib;tbb.lib;libboost_filesystem-vc141-mt-x64-1_66.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="detect.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

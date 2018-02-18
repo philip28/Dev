@@ -1,7 +1,6 @@
 #pragma once
 
 #include "opencv2/opencv.hpp"
-using namespace cv;
 
 class ImageTransformData
 {
@@ -9,7 +8,8 @@ public:
 	ImageTransformData()
 	{
 		params.output_type = "embed";
-		params.numsample = 1000;
+		params.num_bg_files = 1000;
+		params.num_samples_per_file = 1;
 		params.maxintensitydev = 40;
 		params.maxxangle = 0.15; // PI/20
 		params.maxyangle = 1.0; // PI/3
@@ -19,13 +19,16 @@ public:
 		params.maxincl = 0.25;
 		params.winsize = 24;
 		params.maxscale = -1.0;
-		params.random = false;
+		params.random_bg_file = false;
 		params.grayscale = false;
 	};
 
-	Mat img_src, img_tran, alpha;
+	cv::Mat img_src, img_tran, alpha;
 
 	std::string bgname;
+	std::string background_dir;
+	std::string output_dir;
+	std::string info_file;
 	double maxscale, scale;
 	int width, height;
 	double bg_color, fill_color;
@@ -43,10 +46,12 @@ public:
 
 	struct
 	{
-		int numsample;
+		int num_bg_files;
+		int num_samples_per_file;
 		std::string bg_color;
 		std::string fill_color;
 		std::string output_type;
+		bool randomize;
 		bool grayscale;
 		int transparent_color_low, transparent_color_high;
 		bool noise_removal;
@@ -60,7 +65,7 @@ public:
 		int winsize;
 		int fixed_size;
 		double maxscale;
-		bool random;
+		bool random_bg_file;
 		double albedo_min, albedo_max;
 		double ambient;
 		double specular_min, specular_max;

@@ -84,10 +84,10 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>%OPENCV_DIR%\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%OPENCV_DIR%\include;d:\dev\ConfigReader;%BOOST_DIR%</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib;%BOOST_DIR%\stage\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>opencv_core331d.lib;opencv_highgui331d.lib;opencv_imgcodecs331d.lib;opencv_imgproc331d.lib;opencv_objdetect331d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -114,12 +114,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>%OPENCV_DIR%\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%OPENCV_DIR%\include;d:\dev\ConfigReader;%BOOST_DIR%</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%OPENCV_DIR%\x64\vc15\lib;%BOOST_DIR%\stage\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>opencv_core331.lib;opencv_highgui331.lib;opencv_objdetect331.lib;opencv_imgcodecs331.lib;opencv_imgproc331.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -129,7 +129,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BackgroundImageReader.h" />
-    <ClInclude Include="ConfigReader.h" />
     <ClInclude Include="Cylinder.h" />
     <ClInclude Include="ImageTransformData.h" />
     <ClInclude Include="InfoWriter.h" />
