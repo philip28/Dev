@@ -2,6 +2,13 @@
 
 #include "Object.h"
 
+#if defined HAVE_TBB
+#define NOMINMAX
+#include "tbb/tbb.h"
+#include "tbb/concurrent_vector.h"
+#undef NOMINMAX
+#endif
+
 inline void _getcylxz(double r, double phi, int l, double &x, double &z)
 {
 	double alpha;
@@ -14,28 +21,22 @@ inline void _getcylxz(double r, double phi, int l, double &x, double &z)
 class Cylinder : public Object
 {
 public:
-	void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1)
+	void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1) override
 	{
-		double r, dz = 0, y1;
-		cv::Vec3d color_rgb;
-		double color_gs;
-		int cx, l, y;
-		point3d point;
-		const double RW = 0.2126, GW = 0.7152, BW = 0.0722;
 		int cn = src.channels();
-
 		if (src.depth() != CV_8U || !(cn == 3 || cn == 1) || src.dims != 2)
 		{
 			CV_Error(CV_StsBadArg, "Source must be a two-dimensional array.");
 			throw;
 		}
 
-		cx = src.cols / 2;
-		r = rad;
+		int cx = src.cols / 2;
 
-		for (y = 0; y < src.rows; y++)
+		for (auto y = 0; y < src.rows; y++)
 		{
-			y1 = y;
+			double y1 = y;
+			double dz = 0;
+			double r = rad;
 			// inclination
 			if (i) {
 				dz = y * sin(i);
@@ -43,8 +44,11 @@ public:
 				y1 = y * cos(i);
 			}
 
-			for (l = 0; l < src.cols; l++)
+			for (auto l = 0; l < src.cols; l++)
 			{
+				cv::Vec3d color_rgb;
+				double color_gs;
+
 				if (cn == 3)
 				{
 					color_rgb = src.at<cv::Vec3b>(y, l);
@@ -57,6 +61,7 @@ public:
 					color_rgb = cv::Vec3d(color_gs, color_gs, color_gs);
 				}
 
+				point3d point;
 				_getcylxz(r, 0, l - cx, point.coords.x, point.coords.z);
 				point.coords.z -= dz;
 				point.coords.y = y1;
@@ -71,7 +76,11 @@ public:
 			}
 		}
 
-		radius = MAX(rad, r);
+		if (i)
+			radius = MAX((src.rows - 1) * sin(i) + rad, rad);
+		else
+			radius = rad;
+//		radius = MAX(rad, r);
 		GetBounds();
 
 		Shift(0, -maxy / 2, -radius); // optimize later

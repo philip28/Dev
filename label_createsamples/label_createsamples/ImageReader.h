@@ -2,24 +2,38 @@
 
 #include <string>
 #include <algorithm>
+#include "RandGen.h"
 #include "opencv2/opencv.hpp"
 #include "boost/filesystem.hpp"
 
-class BackgroundImageReader
+#if defined HAVE_TBB
+#define NOMINMAX
+#include "tbb/tbb.h"
+#undef NOMINMAX
+#endif
+
+enum input_type
+{
+	IMAGE,
+	DIR,
+	LIST
+};
+
+class ImageReader
 {
 public:
-	bool Create(std::string filename, bool gs = false)
+	bool Init(std::string filename, int type, RandGen* r, bool gs = false)
 	{
 		boost::filesystem::path p(filename);
 
 		if (!boost::filesystem::exists(p))
 			return false;
 
-		count = 0;
-		pos = 0;
-		index = 0;
+		rec_count = 0;
+		rec_pos = 0;
+		rec_index = 0;
 
-		if (boost::filesystem::is_regular_file(p))
+		if (type == input_type::LIST)
 		{
 			std::string line;
 
@@ -34,31 +48,43 @@ public:
 				if (line.empty()) continue;
 				if (line.at(0) == '#') continue; /* comment */
 				filelist.push_back(line);
-				count++;
+				rec_count++;
 			}
 		}
-		else
+		else if (type == input_type::IMAGE)
+		{
+			filelist.push_back(filename);
+			rec_count++;
+		}
+		else if (type == input_type::DIR)
 		{
 			for (auto&& x : boost::filesystem::directory_iterator(p))
 			{
 				if (boost::filesystem::is_regular_file(x.path()))
 				{
 					filelist.push_back(x.path().string());
-					count++;
+					rec_count++;
 				}
 			}
 		}
+		else
+			return false;
 
 		grayscale = gs;
+		random = r;
 
 		return true;
 	}
 
-	int Next()
+	size_t Get(size_t i)
 	{
-		if (index >= count) return -1;
+		if (i >= filelist.size())
+		{
+			CV_Error(CV_StsBadArg, "Index out of range");
+			return -1;
+		}
 
-		imagefullname = filelist[index++];
+		imagefullname = filelist[i];
 		ExtractFileName();
 
 		if (grayscale)
@@ -69,35 +95,41 @@ public:
 			CV_Error(CV_StsBadArg, "Error opening background image " + imagefullname);
 			return -1;
 		}
-		pos++;
 
-		return pos;
+		return i;
 	}
 
-	int NextRandom()
+	size_t GetRandom()
 	{
-		if (index >= count) return -1;
-
-		index++;
-		pos = (int)((filelist.size() - 1) * ((double)rand() / RAND_MAX));
-		imagefullname = filelist[pos];
-		ExtractFileName();
-
-		if (grayscale)
-			image = cv::imread(imagefullname.c_str(), cv::IMREAD_GRAYSCALE);
-		else
-			image = cv::imread(imagefullname.c_str());
-		if (image.empty()) {
-			CV_Error(CV_StsBadArg, "Error opening background image");
-			return -1;
-		}
-
-		return pos;
+		rec_pos = random->InRangeI(0, (int)filelist.size() - 1);
+		rec_pos = Get(rec_pos);
+		return rec_pos;
 	}
 
-	int count = 0;
-	int pos = 0;
-	int index = 0;
+	size_t Next(bool r=false)
+	{
+		if (rec_index >= rec_count) return -1;
+
+		if (r)
+			rec_pos = GetRandom();
+		else
+			rec_pos = Get(rec_pos);
+
+		rec_index++;
+		rec_pos++;
+
+		return rec_pos-1;
+	}
+
+	void Rewind()
+	{
+		rec_index = 0;
+		rec_pos = 0;
+	}
+
+	size_t rec_count = 0;
+	size_t rec_pos = 0;
+	size_t rec_index = 0;
 	cv::Mat image;
 	std::string imageshortname, imagefullname;
 	std::vector<std::string> filelist;
@@ -125,4 +157,5 @@ private:
 	}
 
 	bool grayscale = false;
+	RandGen* random;
 };

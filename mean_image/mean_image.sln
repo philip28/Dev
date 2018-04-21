@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2036
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "mean_image", "mean_image\mean_image.pyproj", "{E5FA14ED-E4F4-40EC-8EEB-7012E23C2592}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E5FA14ED-E4F4-40EC-8EEB-7012E23C2592}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5FA14ED-E4F4-40EC-8EEB-7012E23C2592}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5876747E-B9BC-4B21-B179-8F9B2A6C6185}
+	EndGlobalSection
+EndGlobal

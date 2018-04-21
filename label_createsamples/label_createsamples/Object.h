@@ -1,7 +1,14 @@
 #pragma once
 
 #include <vector>
+#include <limits>
 #include "opencv2/opencv.hpp"
+
+#if defined HAVE_TBB
+#define NOMINMAX
+#include "tbb/tbb.h"
+#undef NOMINMAX
+#endif
 
 #define PI 3.1415926535
 
@@ -96,12 +103,13 @@ public:
 		center[0] = x;
 		center[1] = y;
 		center[2] = z;
+
 		center = cv::normalize(center);
 
 		GetBounds();
 	}
 
-	void OutMat(cv::Mat &img, cv::Mat &alpha, int type = CV_8UC3, cv::Vec3d bgcolor = 0, cv::Vec3d fillcolor = 0, bool depth = true, bool square = false, bool approx = false)
+	void OutMat(cv::Mat &img, cv::Mat &alpha, int type = CV_8UC3, cv::Vec3d bgcolor = 0, cv::Vec3d fillcolor = 0, bool depth = true, bool approx = false)
 	{
 		if (bgcolor[0] < 0 && fillcolor[0] >= 0)
 		{
@@ -117,14 +125,6 @@ public:
 		// initialize dest image
 		dst_width = (int)abs(round(maxx - minx)) + 1;
 		dst_height = (int)abs(round(maxy - miny)) + 1;
-		int dx = 0, dy = 0;
-
-		if (square)
-		{
-			dx = (std::max(dst_width, dst_height) - dst_width) / 2;
-			dy = (std::max(dst_width, dst_height) - dst_height) / 2;
-			dst_width = dst_height = std::max(dst_width, dst_height);
-		}
 
 		cv::Vec3i bgc = 255 * bgcolor;
 		cv::Vec3i fc = 255 * fillcolor;
@@ -147,8 +147,8 @@ public:
 		{
 			for (it = bg_points.begin(), it_end = bg_points.end(); it != it_end; ++it)
 			{
-				int x = (int)(it->coords.x - minx) + dx;
-				int y = (int)(it->coords.y - miny) + dy;
+				int x = (int)(it->coords.x - minx);
+				int y = (int)(it->coords.y - miny);
 				if (x >= 0 && y >= 0 && x < dst_width && y < dst_height)
 				{
 					rgb.at<cv::Vec3b>(y, x) = bgc;
@@ -162,8 +162,8 @@ public:
 			tc[0] = (uchar)std::max(0.0, std::min(it->value[0], 1.0) * 255);
 			tc[1] = (uchar)std::max(0.0, std::min(it->value[1], 1.0) * 255);
 			tc[2] = (uchar)std::max(0.0, std::min(it->value[2], 1.0) * 255);
-			int x = (int)(it->coords.x - minx) + dx;
-			int y = (int)(it->coords.y - miny) + dy;
+			int x = (int)(it->coords.x - minx);
+			int y = (int)(it->coords.y - miny);
 			rgb.at<cv::Vec3b>(y, x) = tc;
 			alpha.at<uchar>(y, x) = 255;
 		}
@@ -232,7 +232,7 @@ public:
 	void ZSort()
 	{
 		std::sort(points.begin(), points.end(), [](point3d a, point3d b) {
-		return a.coords.z > b.coords.z;
+			return a.coords.z > b.coords.z;
 		});
 		std::sort(bg_points.begin(), bg_points.end(), [](point3d a, point3d b) {
 			return a.coords.z > b.coords.z;
@@ -272,6 +272,7 @@ public:
 		miny = MinY()->coords.y;
 	}
 
+	virtual void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1) = 0;
 	virtual cv::Vec3d Normal(const vec3d &) const = 0;
 
 
@@ -288,4 +289,5 @@ public:
 	} surface;
 
 	double minx = -1, miny = -1, maxx = -1, maxy = -1;
+	const double RW = 0.2126, GW = 0.7152, BW = 0.0722;
 };

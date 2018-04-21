@@ -5,23 +5,83 @@
 #include <memory>
 #include "opencv2/opencv.hpp"
 
+#if defined HAVE_TBB
+#define NOMINMAX
+#include "tbb/tbb.h"
+#undef NOMINMAX
+#endif
+
 static const double kInfinity = std::numeric_limits<double>::max();
 
 class Light
 {
 public:
-	Light(const cv::Vec3d &c = 1, const cv::Vec3d &i = 1) : color(c), intensity(i) {}
+	Light(const int t, const cv::Vec3d &i = 1) : intensity(i)
+	{
+		color = ColorTempToRGB(t);
+	}
 	virtual ~Light() {}
 	virtual void Illuminate(const point3d &P, cv::Vec3d &, cv::Vec3d &, double &) const = 0;
 	cv::Vec3d color;
 	cv::Vec3d intensity;
+
+	cv::Vec3d ColorTempToRGB(unsigned int kelvin)
+	{
+		const int R = 0, G = 1, B = 2;
+		cv::Vec3d rgb;
+		double temp = kelvin / 100.0;
+
+		if (temp <= 66)
+		{
+			rgb[R] = 255;
+
+			rgb[G] = temp;
+			rgb[G] = 99.4708025861 * std::log(rgb[G]) - 161.1195681661;
+
+			if (temp <= 19)
+			{
+				rgb[B] = 0;
+			}
+			else {
+				rgb[B] = temp - 10;
+				rgb[B] = 138.5177312231 * std::log(rgb[B]) - 305.0447927307;
+			}
+		}
+		else
+		{
+			rgb[R] = temp - 60;
+			rgb[R] = 329.698727446 * std::pow(rgb[R], -0.1332047592);
+
+			rgb[G] = temp - 60;
+			rgb[G] = 288.1221695283 * std::pow(rgb[G], -0.0755148492);
+
+			rgb[B] = 255;
+
+		}
+
+		clamp(rgb[R], 0, 255);
+		clamp(rgb[G], 0, 255);
+		clamp(rgb[B], 0, 255);
+
+		rgb /= 255.0;
+
+		return rgb;
+	}
+
+private:
+	double clamp(double x, double min, double max)
+	{
+		if (x < min) return min;
+		if (x > max) return max;
+		return x;
+	}
 };
 
 class DistantLight : public Light
 {
 	cv::Vec3d dir;
 public:
-	DistantLight(const cv::Vec3d &P, const cv::Vec3d &c = 1, const cv::Vec3d &i = 1) : Light(c, i), dir(P) {}
+	DistantLight(const cv::Vec3d &P, const int t, const cv::Vec3d &i = 1) : Light(t, i), dir(P) {}
 	void Illuminate(const point3d &P, cv::Vec3d &LightDir, cv::Vec3d &LightIntensity, double &Distance) const override
 	{
 		LightDir = -dir; // Surface to light
@@ -34,7 +94,7 @@ class PointLight : public Light
 {
 	cv::Vec3d pos;
 public:
-	PointLight(const cv::Vec3d &P, const cv::Vec3d &c = 1, const cv::Vec3d &i = 1) : Light(c, i), pos(P) {}
+	PointLight(const cv::Vec3d &P, const int t, const cv::Vec3d &i = 1) : Light(t, i), pos(P) {}
 	void Illuminate(const point3d &P, cv::Vec3d &LightDir, cv::Vec3d &LightIntensity, double &Distance) const override
 	{
 		cv::Vec3d hitpoint(P.coords.x, P.coords.y, P.coords.z);
@@ -73,7 +133,6 @@ public:
 			{
 				frame.points.push_back(CastRay(*it, *objects[i]));
 			}
-
 			frame.bg_points = objects[i]->bg_points;
 		}
 	}

@@ -5,6 +5,49 @@
 class Plane : public Object
 {
 public:
+	void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1) override
+	{
+		int cn = src.channels();
+
+		for (int y = 0; y < src.rows; y++)
+		{
+			for (int x = 0; x < src.cols; x++)
+			{
+				cv::Vec3d color_rgb;
+				double color_gs;
+
+				if (cn == 3)
+				{
+					color_rgb = src.at<cv::Vec3b>(y, x);
+					color_rgb /= 255.0;
+					color_gs = color_rgb[0] * RW + color_rgb[1] * BW + color_rgb[2] * GW;
+				}
+				else
+				{
+					color_gs = src.at<uchar>(y, x) / 255.0;
+					color_rgb = cv::Vec3d(color_gs, color_gs, color_gs);
+				}
+
+				point3d point;
+				point.coords.x = x;
+				point.coords.y = y;
+				point.coords.z = 0;
+				point.value = color_rgb;
+
+				// check if transparent
+				bool tr = tclow >= 0 && tchigh >= tclow && (color_gs >= tclow && color_gs <= tchigh);
+				if (tr)
+					bg_points.push_back(point);
+				else
+					points.push_back(point);
+			}
+		}
+
+		GetBounds();
+		Shift(-maxx / 2, -maxy / 2, 0); // optimize later
+
+		center = cv::Vec3d(0, 0, -1);
+	};
 	void ProjectImage8(cv::Mat src, double tclow = -1, double tchigh = -1)
 	{
 		point3d point;
