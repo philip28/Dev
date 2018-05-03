@@ -5,8 +5,23 @@
 class Plane : public Object
 {
 public:
-	void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1) override
+	void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1, int mode = 0) override
 	{
+		int R, G, B;
+		if (mode == 0)
+		{
+			// BGR, opencv
+			R = 2;
+			G = 1;
+			B = 0;
+		}
+		else
+		{
+			R = 0;
+			G = 1;
+			B = 2;
+		}
+
 		int cn = src.channels();
 
 		for (int y = 0; y < src.rows; y++)
@@ -20,7 +35,7 @@ public:
 				{
 					color_rgb = src.at<cv::Vec3b>(y, x);
 					color_rgb /= 255.0;
-					color_gs = color_rgb[0] * RW + color_rgb[1] * BW + color_rgb[2] * GW;
+					color_gs = color_rgb[R] * RW + color_rgb[G] * GW + color_rgb[B] * BW;
 				}
 				else
 				{

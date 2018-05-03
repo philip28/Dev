@@ -16,18 +16,37 @@ static const double kInfinity = std::numeric_limits<double>::max();
 class Light
 {
 public:
-	Light(const int t, const cv::Vec3d &i = 1) : intensity(i)
-	{
-		color = ColorTempToRGB(t);
-	}
+	Light(const cv::Vec3d c, const cv::Vec3d &i = 1) : intensity(i), color(c) {};
 	virtual ~Light() {}
 	virtual void Illuminate(const point3d &P, cv::Vec3d &, cv::Vec3d &, double &) const = 0;
 	cv::Vec3d color;
 	cv::Vec3d intensity;
 
-	cv::Vec3d ColorTempToRGB(unsigned int kelvin)
+	static cv::Vec3d ApplyBias(cv::Vec3d src, cv::Vec3d bias)
 	{
-		const int R = 0, G = 1, B = 2;
+		cv::Vec3d rgb = src.mul(bias);
+		clamp(rgb, 0, 1);
+		
+		return rgb;
+	}
+
+	static cv::Vec3d ColorTempToRGB(unsigned int kelvin, int mode = 0)
+	{
+		int R, G, B;
+		if (mode == 0)
+		{
+			// BGR, opencv
+			R = 2;
+			G = 1;
+			B = 0;
+		}
+		else
+		{
+			R = 0;
+			G = 1;
+			B = 2;
+		}
+
 		cv::Vec3d rgb;
 		double temp = kelvin / 100.0;
 
@@ -59,21 +78,20 @@ public:
 
 		}
 
-		clamp(rgb[R], 0, 255);
-		clamp(rgb[G], 0, 255);
-		clamp(rgb[B], 0, 255);
-
 		rgb /= 255.0;
+		clamp(rgb, 0, 1);
 
 		return rgb;
 	}
 
 private:
-	double clamp(double x, double min, double max)
+	static void clamp(cv::Vec3d& x, double min, double max)
 	{
-		if (x < min) return min;
-		if (x > max) return max;
-		return x;
+		for (int i = 0; i < 3; i++)
+		{
+			if (x[i] < min) x[i] = min;
+			if (x[i] > max) x[i] = max;
+		}
 	}
 };
 
@@ -81,7 +99,7 @@ class DistantLight : public Light
 {
 	cv::Vec3d dir;
 public:
-	DistantLight(const cv::Vec3d &P, const int t, const cv::Vec3d &i = 1) : Light(t, i), dir(P) {}
+	DistantLight(const cv::Vec3d &P, const cv::Vec3d &c, const cv::Vec3d &i = 1) : Light(c, i), dir(P) {}
 	void Illuminate(const point3d &P, cv::Vec3d &LightDir, cv::Vec3d &LightIntensity, double &Distance) const override
 	{
 		LightDir = -dir; // Surface to light
@@ -94,7 +112,7 @@ class PointLight : public Light
 {
 	cv::Vec3d pos;
 public:
-	PointLight(const cv::Vec3d &P, const int t, const cv::Vec3d &i = 1) : Light(t, i), pos(P) {}
+	PointLight(const cv::Vec3d &P, const cv::Vec3d &c, const cv::Vec3d &i = 1) : Light(c, i), pos(P) {}
 	void Illuminate(const point3d &P, cv::Vec3d &LightDir, cv::Vec3d &LightIntensity, double &Distance) const override
 	{
 		cv::Vec3d hitpoint(P.coords.x, P.coords.y, P.coords.z);
@@ -112,11 +130,11 @@ public:
 
 	void AddLight(Light *l)
 	{
-		lights.push_back(std::unique_ptr<Light>(l));
+		lights.push_back(l);
 	}
 	void AddObject(Object *o)
 	{
-		objects.push_back(std::unique_ptr<Object>(o));
+		objects.push_back(o);
 	}
 
 	void Render(Plane &frame, bool depth = true)
@@ -188,7 +206,7 @@ public:
 		lmax[2] = std::max(std::max(lx1[2], lx2[2]), std::max(ly1[2], ly2[2]));
 	}
 
-	std::vector<std::unique_ptr<Light>> lights;
-	std::vector<std::unique_ptr<Object>> objects;
+	std::vector<Light*> lights;
+	std::vector<Object*> objects;
 	cv::Vec3d viewdir;
 };

@@ -68,6 +68,36 @@ bool SampleMaker::ViewAngleTransform(cv::Mat src, cv::Mat dst, double xangle, do
 	return true;
 }
 
+void SampleMaker::ApplyHSVBias(cv::Mat& image, cv::Vec3d bias)
+{
+	cv::Mat hsv;
+	cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+
+	for (int row = 0; row < hsv.rows; row++)
+	{
+		for (int col = 0; col < hsv.cols; col++)
+		{
+			double h = hsv.at<cv::Vec3b>(row, col)[0];
+			double s = hsv.at<cv::Vec3b>(row, col)[1];
+			double v = hsv.at<cv::Vec3b>(row, col)[2];
+
+			h *= bias[0];
+			s *= bias[1];
+			v *= bias[2];
+			if (h > 179)			// The range of Hue in OpenCV is 0-179
+				h = h - 180;		// Color circle
+			s = std::min(s, 255.0);	// The range of S and V in OpenCV is 0-255
+			v = std::min(v, 255.0);
+
+			hsv.at<cv::Vec3b>(row, col)[0] = (uchar)h;
+			hsv.at<cv::Vec3b>(row, col)[1] = (uchar)s;
+			hsv.at<cv::Vec3b>(row, col)[2] = (uchar)v;
+		}
+	}
+
+	cv::cvtColor(hsv, image, cv::COLOR_HSV2BGR);
+}
+
 bool SampleMaker::TransformImage(const cv::Mat& image)
 {
 	img_src = image;
@@ -92,26 +122,35 @@ bool SampleMaker::TransformImage(const cv::Mat& image)
 	object->ProjectImage(img_src, r, i, transparent_color_low, transparent_color_high);
 	object->Rotate(xangle, yangle, zangle);
 
-	Scene scene;
-	scene.AddObject(object);
+	if (params.use_lighting)
+	{
+		Scene scene;
+		scene.AddObject(object);
 
-	cv::Vec3d lmin, lmax;
-	scene.GetLightingRange(*object, lmin, lmax);
-	light_x = lmin[0] - params.light_dir_dev_max + (lmax[0] + params.light_dir_dev_max) * random->InRangeF(0, 1);
-	light_y = lmin[1] - params.light_dir_dev_max + (lmax[1] + params.light_dir_dev_max) * random->InRangeF(0, 1);
-	light_z = lmin[2] - params.light_dir_dev_max + (lmax[2] + params.light_dir_dev_max) * random->InRangeF(0, 1);
+		cv::Vec3d lmin, lmax;
+		scene.GetLightingRange(*object, lmin, lmax);
+		light_x = lmin[0] - params.light_dir_dev_max + (lmax[0] + params.light_dir_dev_max) * random->InRangeF(0, 1);
+		light_y = lmin[1] - params.light_dir_dev_max + (lmax[1] + params.light_dir_dev_max) * random->InRangeF(0, 1);
+		light_z = lmin[2] - params.light_dir_dev_max + (lmax[2] + params.light_dir_dev_max) * random->InRangeF(0, 1);
 
-	auto light = new DistantLight(normalize(cv::Vec3d(light_x, light_y, light_z)), light_temp,
-		cv::Vec3d(light_intensity, light_intensity, light_intensity));
-	scene.AddLight(light);
+		light_color = Light::ApplyBias(Light::ColorTempToRGB(light_temp), light_bias);
 
-	Plane frame;
-	scene.Render(frame, true);
+		DistantLight light(normalize(cv::Vec3d(light_x, light_y, light_z)), light_color,
+			cv::Vec3d(light_intensity, light_intensity, light_intensity));
+		scene.AddLight(&light);
 
-	if (params.grayscale)
-		frame.OutMat(img_tran, alpha, CV_8UC1, bg_color, fill_color, false, params.noise_removal);
+		Plane frame;
+		scene.Render(frame, true);
+
+		frame.OutMat(img_tran, alpha, params.grayscale, bg_color, fill_color, false, params.noise_removal);
+	}
 	else
-		frame.OutMat(img_tran, alpha, CV_8UC3, bg_color, fill_color, false, params.noise_removal);
+		object->OutMat(img_tran, alpha, params.grayscale, bg_color, fill_color, false, params.noise_removal);
+
+	delete object;
+
+	if (hsv_bias[0] > 0 || hsv_bias[1] > 0 || hsv_bias[2] > 0)
+		ApplyHSVBias(img_tran, hsv_bias);
 
 	return true;
 }
@@ -126,8 +165,8 @@ void SampleMaker::PlaceTransformedImage(cv::Mat& bg)
 		img.create(obj_height, obj_width, CV_8UC3);
 
 	a.create(obj_height, obj_width, CV_8UC1);
-	resize(img_tran, img, img.size());
-	resize(alpha, a, a.size());
+	cv::resize(img_tran, img, img.size());
+	cv::resize(alpha, a, a.size());
 
 	if (img_tran.channels() == 1)
 	{
@@ -165,6 +204,14 @@ void SampleMaker::ProcessSample()
 		object_shininess = random->InRangeF(params.shininess_min, params.shininess_max);
 		light_temp = random->InRangeI(params.light_temp_min, params.light_temp_max);
 		light_intensity = random->InRangeF(params.light_intensity_min, params.light_intensity_max);
+
+		light_bias[0] = 1.0 + random->InRangeF(-params.light_bias_max, params.light_bias_max);
+		light_bias[1] = 1.0 + random->InRangeF(-params.light_bias_max, params.light_bias_max);
+		light_bias[2] = 1.0 + random->InRangeF(-params.light_bias_max, params.light_bias_max);
+
+		hsv_bias[0] = 1.0 + random->InRangeF(-params.hue_bias_max, params.hue_bias_max);
+		hsv_bias[1] = 1.0 + random->InRangeF(-params.saturation_bias_max, params.saturation_bias_max);
+		hsv_bias[2] = 1.0 + random->InRangeF(-params.value_bias_max, params.value_bias_max);
 
 		if (params.bg_color == "random")
 			bg_color = random->InRangeF(0, 1);
@@ -313,6 +360,7 @@ void SampleMaker::Visualize(std::string imagename)
 	object_Kd = 0.5;
 	object_Ks = 0.4;
 	light_temp = 5000;
+	light_bias = cv::Vec3d(1, 1, 1);
 	light_intensity = 1;
 	light_x = 0;
 	light_y = 0;
@@ -326,27 +374,32 @@ void SampleMaker::Visualize(std::string imagename)
 		bg_color = bg_color_i / 255.0;
 		fill_color = fill_color_i / 255.0;
 
-		auto label = new Cylinder;
-		label->ProjectImage(img_src, r, i, transparent_color_low, transparent_color_high);
-		label->Rotate(xangle, yangle, zangle);
-		label->surface.albedo = cv::Vec3d(object_albedo, object_albedo, object_albedo);
-		label->surface.Ka = cv::Vec3d(object_Ka, object_Ka, object_Ka);
-		label->surface.Kd = cv::Vec3d(object_Kd, object_Kd, object_Kd);
-		label->surface.Ks = cv::Vec3d(object_Ks, object_Ks, object_Ks);
-		label->surface.shininess = object_shininess;
+		Cylinder object;
+		object.ProjectImage(img_src, r, i, transparent_color_low, transparent_color_high);
+		object.Rotate(xangle, yangle, zangle);
+		object.surface.albedo = cv::Vec3d(object_albedo, object_albedo, object_albedo);
+		object.surface.Ka = cv::Vec3d(object_Ka, object_Ka, object_Ka);
+		object.surface.Kd = cv::Vec3d(object_Kd, object_Kd, object_Kd);
+		object.surface.Ks = cv::Vec3d(object_Ks, object_Ks, object_Ks);
+		object.surface.shininess = object_shininess;
 
-		auto light = new DistantLight(normalize(cv::Vec3d(light_x, light_y, light_z)), light_temp,
+		light_color = Light::ApplyBias(Light::ColorTempToRGB(light_temp), light_bias);
+		DistantLight light(normalize(cv::Vec3d(light_x, light_y, light_z)), light_color,
 			cv::Vec3d(light_intensity, light_intensity, light_intensity));
 
 		Scene scene;
-		scene.AddObject(label);
-		scene.AddLight(light);
+		scene.AddObject(&object);
+		scene.AddLight(&light);
 
 		Plane frame;
 		scene.Render(frame);
 
 		frame.OutMat(img_tran, alpha, CV_8UC3, cv::Vec3d(bg_color, bg_color, bg_color), cv::Vec3d(fill_color, fill_color, fill_color),
 			false, params.noise_removal);
+
+		if (hsv_bias[0] || hsv_bias[1] || hsv_bias[2])
+			ApplyHSVBias(img_tran, hsv_bias);
+
 		img.setTo(cv::Scalar(0));
 		img_tran.copyTo(img(cv::Rect(50, 50, img_tran.cols, img_tran.rows)));
 
@@ -381,15 +434,21 @@ void SampleMaker::Visualize(std::string imagename)
 			"(d) K diffuse = %f\n"
 			"(s) K specular = %f\n"
 			"(S) shininess = %d\n"
-			"(C) light temperature = %d\n"
+			"(C) light color = [%d:%d:%d]\n"
+			"(B) light color bias = [%f:%f:%f]\n"
+			"(H) HSV bias = [%f:%f:%f]\n"
+			"(T) light temperature = %d\n"
 			"(I) light intensity = %f\n"
 			"(X) light x = %f\n"
 			"(Y) light y = %f\n"
 			"(Z) light z = %f\n"
 			"(D) detect with cascade = %s\n",
 			rad, i, xangle, yangle, zangle, (int)(bg_color * 255), (int)(fill_color * 255),
-			object_albedo, object_Ka, object_Kd, object_Ks,
-			(int)object_shininess, light_temp, light_intensity, light_x, light_y, light_z,
+			object_albedo, object_Ka, object_Kd, object_Ks, (int)object_shininess,
+			(int)(light_color[2]*255), (int)(light_color[1]*255), (int)(light_color[0]*255),
+			light_bias[2], light_bias[1], light_bias[0],
+			hsv_bias[0], hsv_bias[1], hsv_bias[2],
+			light_temp, light_intensity, light_x, light_y, light_z,
 			cascade.c_str());
 		printf("Press a key to change transformation parameters.\n");
 		imshow("shape", img);
@@ -399,6 +458,13 @@ void SampleMaker::Visualize(std::string imagename)
 		if (key == 113)	// q
 		{
 			break;
+		}
+		else if (key == 9) // tab
+		{
+			printf("Saving the image...\n");
+			cv::Mat out;
+			cv::resize(img, out, cv::Size(params.patch_size, params.patch_size));
+			infowriter->WriteImage("visualize.jpg", params.output_dir, out);
 		}
 		else if (key == 114) // r
 		{
@@ -463,10 +529,41 @@ void SampleMaker::Visualize(std::string imagename)
 			printf("Enter shininess (0-inf): ");
 			scanf_s("%lf", &object_shininess);
 		}
-		else if (key == 67) // C
+		else if (key == 84) // T
 		{
 			printf("Enter light temperature (1000-40000): ");
 			scanf_s("%d", &light_temp);
+		}
+		else if (key == 67) // C
+		{
+			int r, g, b;
+			printf("Enter R component: ");
+			scanf_s("%d", &r);
+			printf("Enter G component: ");
+			scanf_s("%d", &g);
+			printf("Enter B component: ");
+			scanf_s("%d", &b);
+			light_color[2] = r / 255.0;
+			light_color[1] = g / 255.0;
+			light_color[0] = b / 255.0;
+		}
+		else if (key == 66) // B
+		{
+			printf("Enter R component: ");
+			scanf_s("%lf", &light_bias[2]);
+			printf("Enter G component: ");
+			scanf_s("%lf", &light_bias[1]);
+			printf("Enter B component: ");
+			scanf_s("%lf", &light_bias[0]);
+		}
+		else if (key == 72) // H
+		{
+			printf("Enter H component: ");
+			scanf_s("%lf", &hsv_bias[0]);
+			printf("Enter S component: ");
+			scanf_s("%lf", &hsv_bias[1]);
+			printf("Enter V component: ");
+			scanf_s("%lf", &hsv_bias[2]);
 		}
 		else if (key == 73) // I
 		{

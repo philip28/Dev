@@ -39,11 +39,16 @@ typedef struct
 	double min_image_scale = -1.0;
 	bool vary_image_pos = false;
 	bool random_bg_file = true;
+	bool use_lighting = true;
 	double albedo_min = 0.4, albedo_max = 0.8;
 	double ambient = 0.1;
 	double specular_min = 0.3, specular_max = 0.7;
 	double shininess_min = 30.0, shininess_max = 150.0;
 	int light_temp_min = 3000, light_temp_max = 7000;
+	double light_bias_max = 0.0;
+	double hue_bias_max = 0.0;
+	double saturation_bias_max = 0.0;
+	double value_bias_max = 0.0;
 	double light_intensity_min = 1.0, light_intensity_max = 4.0;
 	double light_dir_dev_max = 0.1;
 } param_type;
@@ -59,6 +64,7 @@ public:
 	InfoWriter* infowriter;
 
 	bool ViewAngleTransform(cv::Mat src, cv::Mat dst, double xangle, double yangle, double zangle, int dist);
+	void ApplyHSVBias(cv::Mat& image, cv::Vec3d bias);
 	bool TransformImage(const cv::Mat& image);
 	void PlaceTransformedImage(cv::Mat& bg);
 	void ProcessSample();
@@ -81,6 +87,9 @@ private:
 	double xangle, yangle, zangle;
 	double light_x, light_y, light_z;
 	int light_temp;
+	cv::Vec3d light_color;
+	cv::Vec3d light_bias;
+	cv::Vec3d hsv_bias;
 	double light_intensity;
 	double object_albedo;
 	double object_Ka, object_Kd, object_Ks;

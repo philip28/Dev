@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 			config_file = argv[i + 1];
 	}
 
-	if (!config.Create(config_file))
+	if (!config.Init(config_file))
 	{
 		printf("Usage: %s [-c | config]\n", argv[0]);
 		exit(1);
@@ -56,6 +56,7 @@ int main(int argc, char* argv[])
 	config.InitParam("min_image_scale", "Vary object size (from minimum to full scale)", params.min_image_scale);
 	config.InitParam("vary_image_pos", "Vary object position within sample", params.vary_image_pos);
 	config.InitParam("random_bg_file", "Use random background file sequence", params.random_bg_file);
+	config.InitParam("use_lighting", "Apply lighting", params.use_lighting);
 	config.InitParam("albedo_min", "Lower threshold for surface albedo", params.albedo_min);
 	config.InitParam("albedo_max", "Upper threshold for surface albedo", params.albedo_max);
 	config.InitParam("ambient", "Weight of the ambient surface component", params.ambient);
@@ -65,6 +66,10 @@ int main(int argc, char* argv[])
 	config.InitParam("shininess_max", "Upper threshold for surface shineness", params.shininess_max);
 	config.InitParam("light_temp_min", "Lower threshold for light temperature (K)", params.light_temp_min);
 	config.InitParam("light_temp_max", "Upper threshold for light temperature (K)", params.light_temp_max);
+	config.InitParam("light_bias_max", "Max bias applied to light color", params.light_bias_max);
+	config.InitParam("hue_bias_max", "Max bias applied to Hue HSV component", params.hue_bias_max);
+	config.InitParam("saturation_bias_max", "Max bias applied to Saturation HSV component", params.saturation_bias_max);
+	config.InitParam("value_bias_max", "Max bias applied to Value HSV component", params.value_bias_max);
 	config.InitParam("light_intensity_min", "Lower threshold for light intensity", params.light_intensity_min);
 	config.InitParam("light_intensity_max", "Upper threshold for light intensity", params.light_intensity_max);
 	config.InitParam("light_dir_dev_max", "Max deviation from reflection field of view (radians)", params.light_dir_dev_max);
@@ -72,6 +77,7 @@ int main(int argc, char* argv[])
 	if (visualize)
 	{
 		SampleMaker sm;
+		sm.params = params;
 		sm.Visualize(params.image_file);
 	}
 	else

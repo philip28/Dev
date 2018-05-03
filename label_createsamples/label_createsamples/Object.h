@@ -109,7 +109,7 @@ public:
 		GetBounds();
 	}
 
-	void OutMat(cv::Mat &img, cv::Mat &alpha, int type = CV_8UC3, cv::Vec3d bgcolor = 0, cv::Vec3d fillcolor = 0, bool depth = true, bool approx = false)
+	void OutMat(cv::Mat &img, cv::Mat &alpha, int gray = false, cv::Vec3d bgcolor = 0, cv::Vec3d fillcolor = 0, bool depth = true, bool approx = false)
 	{
 		if (bgcolor[0] < 0 && fillcolor[0] >= 0)
 		{
@@ -195,13 +195,13 @@ public:
 			alpha.setTo(255);
 
 		// Making final image
-		if (type == CV_8UC1)
+		if (gray)
 		{
 			cv::Mat chans[3];
 			cv::split(rgb, chans);
 			img = chans[0].clone();
 		}
-		else if (type == CV_8UC3)
+		else
 		{
 			img = rgb.clone();
 		}
@@ -272,7 +272,7 @@ public:
 		miny = MinY()->coords.y;
 	}
 
-	virtual void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1) = 0;
+	virtual void ProjectImage(cv::Mat src, double rad = -1, double i = 0, double tclow = -1, double tchigh = -1, int mode = 0) = 0;
 	virtual cv::Vec3d Normal(const vec3d &) const = 0;
 
 
@@ -283,8 +283,8 @@ public:
 	struct {
 		cv::Vec3d albedo;
 		cv::Vec3d Ka; // phong model ambient reflectivity coeeficient (RGB)
-		cv::Vec3d Kd; // phong model diffuse eflectivity coeeficient (RGB)
-		cv::Vec3d Ks; // phong model specular eflectivity coeeficient (RGB)
+		cv::Vec3d Kd; // phong model diffuse reflectivity coeeficient (RGB)
+		cv::Vec3d Ks; // phong model specular reflectivity coeeficient (RGB)
 		double shininess = 20; // phong specular exponent
 	} surface;
 
